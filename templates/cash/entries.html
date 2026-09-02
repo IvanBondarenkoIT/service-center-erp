@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cash.entries_title') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('cash.entries_title') }}</h1>
+  <a class="btn btn-ghost" href="/cash">{{ t('cash.report_title') }}</a>
+</div>
+
+<form method="post" action="/cash/entries" class="card stack">
+  <div class="chip-row" data-input="kind">
+    {% for k in kinds %}
+    <button type="button" class="chip {% if k.value == 'expense' %}active{% endif %}" data-value="{{ k.value }}">
+      {{ t('cash.' + k.value) }}
+    </button>
+    {% endfor %}
+    <input type="hidden" name="kind" value="expense" />
+  </div>
+
+  <div>
+    <label>{{ t('cash.date') }}</label>
+    <input type="date" name="entry_date" required value="{{ today }}" />
+  </div>
+  <div>
+    <label>{{ t('cash.amount') }}, {{ t('orders.currency') }}</label>
+    <input type="number" step="0.01" min="0.01" name="amount" class="input-mono input-amount" required placeholder="0.00" />
+  </div>
+  <div>
+    <label>{{ t('cash.description') }}</label>
+    <textarea name="description" rows="2"></textarea>
+  </div>
+
+  <div id="collection-subtype" hidden>
+    <label>{{ t('cash.subtype') }}</label>
+    <div class="chip-row" data-input="subtype">
+      {% for s in subtypes %}
+      <button type="button" class="chip {% if loop.first %}active{% endif %}" data-value="{{ s.value }}">
+        {{ t('cash.' + s.value) }}
+      </button>
+      {% endfor %}
+      <input type="hidden" name="subtype" value="{{ subtypes[0].value }}" />
+    </div>
+  </div>
+
+  {% if user.role.value == 'admin' %}
+  <div>
+    <label>{{ t('cash.center') }}</label>
+    <select name="service_center_id" required>
+      {% for c in centers %}
+      <option value="{{ c.id }}">{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% else %}
+  <input type="hidden" name="service_center_id" value="{{ user.service_center_id }}" />
+  {% endif %}
+
+  <button class="btn btn-login" type="submit">{{ t('cash.submit') }}</button>
+</form>
+
+<section>
+  <h2>{{ t('cash.recent') }}</h2>
+  <div class="order-list">
+  {% for e in entries %}
+  <div class="sheet-row">
+    <div class="order-card-top">
+      <span class="order-date">{{ e.entry_date.strftime('%d.%m.%Y') }}</span>
+      <span class="badge-status {% if e.kind.value == 'collection' %}issued{% else %}waiting_part{% endif %}">{{ t('cash.' + e.kind.value) }}</span>
+    </div>
+    <div class="order-card-bottom">
+      <div>
+        <span class="label-caps">{% if e.subtype %}{{ t('cash.' + e.subtype.value) }}{% endif %}</span>
+        <span class="order-client">{{ e.description }}{% if user.role.value == 'admin' and e.service_center %} · {{ e.service_center.name }}{% endif %}</span>
+      </div>
+      <span class="order-total">−{{ '%.2f'|format(e.amount) }} {{ t('orders.currency') }}</span>
+    </div>
+  </div>
+  {% else %}
+  <p class="muted order-empty">{{ t('cash.empty') }}</p>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

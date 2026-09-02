@@ -1,0 +1,17 @@
+{% if suggested_machine or suggested_client %}
+<div class="suggest-box">
+  <div class="muted">Связь клиент ↔ кофеварка (можно не применять)</div>
+  {% if suggested_machine %}
+  <a href="#"
+     onclick="fillMachineFromSuggest({{ suggested_machine.id }}, '{{ suggested_machine.serial_number|e }}', '{{ suggested_machine.model_name|e }}'); return false;">
+    Подставить кофеварку: {{ suggested_machine.serial_number }} — {{ suggested_machine.model_name }}
+  </a>
+  {% endif %}
+  {% if suggested_client %}
+  <a href="#"
+     onclick="fillClientFromSuggest({{ suggested_client.id }}, '{{ suggested_client.phone|e }}', '{{ suggested_client.name|e }}'); return false;">
+    Подставить клиента: {{ suggested_client.phone }} — {{ suggested_client.name }}
+  </a>
+  {% endif %}
+</div>
+{% endif %}

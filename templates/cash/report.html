@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% block title %}{{ t('cash.report_title') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar no-print">
+  <h1>{{ t('cash.report_title') }}</h1>
+  {% if can_edit %}
+  <a class="btn" href="/cash/entries">{{ t('cash.enter') }}</a>
+  {% endif %}
+</div>
+{% if user.role.value == 'accountant' %}
+<p class="muted no-print">{{ t('cash.mode_accountant') }}</p>
+{% endif %}
+
+<form method="get" action="/cash" class="card order-filters no-print">
+  <div>
+    <label>{{ t('cash.period_from') }}</label>
+    <input type="date" name="date_from" value="{{ date_from }}" />
+  </div>
+  <div>
+    <label>{{ t('cash.period_to') }}</label>
+    <input type="date" name="date_to" value="{{ date_to }}" />
+  </div>
+  <div>
+    <label>{{ t('cash.center') }}</label>
+    {% if user.role.value == 'mechanic' %}
+      <input type="text" value="{% for c in centers %}{% if c.id == center_id %}{{ c.name }}{% endif %}{% endfor %}" readonly />
+    {% else %}
+    <select name="center_id">
+      <option value="">{{ t('cash.all_centers') }}</option>
+      {% for c in centers %}
+      <option value="{{ c.id }}" {% if center_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+  </div>
+  <button class="btn" type="submit">{{ t('cash.show') }}</button>
+  <button class="btn btn-secondary" type="button" onclick="window.print()">{{ t('cash.print') }}</button>
+  <a class="btn btn-secondary" href="/cash.xlsx?date_from={{ date_from }}&amp;date_to={{ date_to }}{% if center_id %}&amp;center_id={{ center_id }}{% endif %}">{{ t('cash.excel') }}</a>
+</form>
+
+<section class="kpi-grid"
+  data-opening="{{ '%.2f'|format(report.opening) }}"
+  data-cash-in="{{ '%.2f'|format(report.cash_in) }}"
+  data-card-in="{{ '%.2f'|format(report.card_in) }}"
+  data-expense="{{ '%.2f'|format(report.expense) }}"
+  data-collection="{{ '%.2f'|format(report.collection) }}"
+  data-closing="{{ '%.2f'|format(report.closing) }}">
+  <div class="kpi">
+    <span class="label-caps">{{ t('cash.opening') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.opening) }} {{ t('orders.currency') }}</span>
+  </div>
+  <div class="kpi">
+    <span class="label-caps">{{ t('cash.cash_in') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.cash_in) }} {{ t('orders.currency') }}</span>
+  </div>
+  <div class="kpi">
+    <span class="label-caps">{{ t('cash.card_in') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.card_in) }} {{ t('orders.currency') }}</span>
+  </div>
+  <div class="kpi kpi-warn">
+    <span class="label-caps">{{ t('cash.outflow') }}</span>
+    <span class="order-total">−{{ '%.2f'|format(report.outflow) }} {{ t('orders.currency') }}</span>
+  </div>
+  <div class="kpi kpi-end">
+    <span class="label-caps">{{ t('cash.closing') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.closing) }} {{ t('orders.currency') }}</span>
+  </div>
+</section>
+<p class="muted text-end">{{ t('cash.formula') }}</p>
+
+<section class="card flush">
+  <div class="section-head">
+    <h2>{{ t('cash.income') }}</h2>
+    <span class="order-total">{{ '%.2f'|format(report.cash_in) }} / {{ '%.2f'|format(report.card_in) }} {{ t('orders.currency') }}</span>
+  </div>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>{{ t('cash.date') }}</th>
+        <th>{{ t('cash.cash_in') }}</th>
+        <th>{{ t('cash.card_in') }}</th>
+        <th>{{ t('cash.basis') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in report.income_rows %}
+      <tr>
+        <td class="order-sn">{{ row.order_date.strftime('%d.%m.%Y') }}</td>
+        <td class="order-sn">{{ '%.2f'|format(row.cash) }}</td>
+        <td class="order-sn">{{ '%.2f'|format(row.card) }}</td>
+        <td>
+          {% if can_edit %}
+          <a href="/orders/{{ row.order_id }}">{{ t('cash.order') }} #{{ row.order_id }}</a>
+          {% else %}
+          {{ t('cash.order') }} #{{ row.order_id }}
+          {% endif %}
+          · {{ row.note }}
+          <div class="muted">{{ row.assignee }}</div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">{{ t('cash.empty') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<div class="grid-2">
+  <section class="card flush">
+    <div class="section-head">
+      <h2>{{ t('cash.expense') }}</h2>
+      <span class="order-total">{{ '%.2f'|format(report.expense) }} {{ t('orders.currency') }}</span>
+    </div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>{{ t('cash.date') }}</th>
+          <th>{{ t('cash.amount') }}</th>
+          <th>{{ t('cash.description') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report.expense_rows %}
+        <tr>
+          <td class="order-sn">{{ row.entry_date.strftime('%d.%m.%Y') }}</td>
+          <td class="order-sn">{{ '%.2f'|format(row.amount) }}</td>
+          <td>{{ row.description }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="muted">{{ t('cash.empty') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="card flush">
+    <div class="section-head">
+      <h2>{{ t('cash.collection') }}</h2>
+      <span class="order-total">{{ '%.2f'|format(report.collection) }} {{ t('orders.currency') }}</span>
+    </div>
+    <table class="data">
+      <thead>
+        <tr>
+          <th>{{ t('cash.date') }}</th>
+          <th>{{ t('cash.amount') }}</th>
+          <th>{{ t('cash.description') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in report.collection_rows %}
+        <tr>
+          <td class="order-sn">{{ row.entry_date.strftime('%d.%m.%Y') }}</td>
+          <td class="order-sn">{{ '%.2f'|format(row.amount) }}</td>
+          <td>
+            {{ row.description }}
+            {% if row.subtype %}<div class="muted">{{ t('cash.' + row.subtype) }}</div>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="muted">{{ t('cash.empty') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

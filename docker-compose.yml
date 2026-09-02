@@ -1,0 +1,36 @@
+﻿services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: scerp
+      POSTGRES_PASSWORD: scerp
+      POSTGRES_DB: service_center_erp
+    ports:
+      - "5433:5432"
+    volumes:
+      - scerp_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scerp -d service_center_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8035:8035"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://scerp:scerp@db:5432/service_center_erp
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./templates:/app/templates
+      - ./static:/app/static
+      - ./scripts:/app/scripts
+
+volumes:
+  scerp_pgdata:

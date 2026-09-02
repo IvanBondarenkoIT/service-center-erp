@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+
+<html lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SERVICE CENTER - Cash Report</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface": "#1c1b1b",
+                        "inverse-surface": "#313030",
+                        "surface-container-low": "#f6f3f2",
+                        "surface-container-high": "#eae7e7",
+                        "on-secondary-container": "#636262",
+                        "outline": "#727974",
+                        "primary-fixed-dim": "#adcebe",
+                        "on-surface-variant": "#414845",
+                        "on-secondary-fixed-variant": "#464747",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#1c1b1b",
+                        "surface-variant": "#e5e2e1",
+                        "surface": "#fcf9f8",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#e1dfdf",
+                        "on-tertiary": "#ffffff",
+                        "tertiary-fixed-dim": "#c6c7c3",
+                        "outline-variant": "#c1c8c3",
+                        "secondary": "#5e5e5e",
+                        "surface-container-highest": "#e5e2e1",
+                        "on-error-container": "#93000a",
+                        "tertiary": "#2d2f2c",
+                        "on-tertiary-fixed-variant": "#464744",
+                        "surface-container": "#f0eded",
+                        "primary-fixed": "#c8eada",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-container": "#b2b2ae",
+                        "on-tertiary-fixed": "#1a1c1a",
+                        "primary-container": "#2c4a3e",
+                        "secondary-fixed": "#e4e2e2",
+                        "secondary-fixed-dim": "#c7c6c6",
+                        "surface-dim": "#dcd9d9",
+                        "tertiary-fixed": "#e3e3de",
+                        "on-primary-fixed-variant": "#2f4d41",
+                        "surface-bright": "#fcf9f8",
+                        "background": "#fcf9f8",
+                        "tertiary-container": "#434542",
+                        "on-primary-container": "#98b9a9",
+                        "surface-tint": "#466558",
+                        "inverse-on-surface": "#f3f0ef",
+                        "inverse-primary": "#adcebe",
+                        "on-secondary-fixed": "#1b1c1c",
+                        "error-container": "#ffdad6",
+                        "primary": "#153328",
+                        "on-primary-fixed": "#012016",
+                        "on-secondary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "target-min": "44px",
+                        "md": "16px",
+                        "lg": "24px",
+                        "margin-mobile": "16px",
+                        "xs": "4px",
+                        "xl": "32px",
+                        "base": "4px",
+                        "gutter": "16px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "mono-total": ["IBM Plex Mono"],
+                        "headline-lg": ["IBM Plex Sans"],
+                        "label-muted": ["IBM Plex Sans"],
+                        "body-md": ["IBM Plex Sans"],
+                        "headline-md": ["IBM Plex Sans"],
+                        "body-lg": ["IBM Plex Sans"],
+                        "label-caps": ["IBM Plex Sans"],
+                        "mono-data": ["IBM Plex Mono"]
+                    },
+                    "fontSize": {
+                        "mono-total": ["18px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-muted": ["12px", { "lineHeight": "16px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "mono-data": ["14px", { "lineHeight": "20px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: #F4F4F1; /* Fixed as per strict guidance */
+            color: #1c1b1b;
+        }
+        
+        /* Utility classes for sharp borders and strict styling */
+        .sharp-border {
+            border: 1px solid #D4D4D0;
+            border-radius: 0;
+        }
+        
+        .border-b-only {
+            border-bottom: 1px solid #D4D4D0;
+        }
+        
+        /* Form elements reset to brutalist */
+        input[type="text"], input[type="date"], select {
+            border: 1px solid #D4D4D0;
+            background-color: #ffffff;
+            border-radius: 0;
+            height: 44px;
+        }
+        
+        input:focus, select:focus {
+            border-color: #1A1A1A;
+            outline: none;
+            box-shadow: none;
+        }
+        
+        .bg-white-strict {
+            background-color: #ffffff;
+        }
+
+        /* Responsive overrides */
+        @media (max-width: 767px) {
+            .mobile-stack { flex-direction: column; }
+            .mobile-w-full { width: 100%; }
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-32 md:pb-0 font-body-md text-body-md">
+<!-- TopAppBar -->
+<header class="bg-surface border-b border-outline w-full flex justify-between items-center px-margin-mobile h-target-min top-0 z-50 sticky" style="border-bottom: 1px solid #D4D4D0; background-color: #ffffff;">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="precision_manufacturing">precision_manufacturing</span>
+<span class="font-headline-md text-headline-md font-bold text-primary">SERVICE CENTER</span>
+</div>
+<button class="font-label-caps text-label-caps text-primary uppercase font-bold hover:bg-surface-container-high transition-colors px-2 py-1 h-target-min flex items-center">
+            LOGOUT
+        </button>
+</header>
+<main class="max-w-[1200px] mx-auto p-margin-mobile md:p-lg space-y-lg">
+<!-- Header / Page Title -->
+<div>
+<h1 class="font-headline-lg text-headline-lg mb-xs">ОТЧЕТ ПО КАССЕ</h1>
+<p class="font-label-muted text-label-muted text-on-surface-variant">Режим бухгалтера: Строгая отчетность</p>
+</div>
+<!-- Filter Bar -->
+<section class="bg-white-strict sharp-border p-md flex flex-wrap gap-md items-end">
+<div class="flex-1 min-w-[200px]">
+<label class="block font-label-muted text-label-muted mb-xs text-on-surface-variant">Период с</label>
+<input class="w-full font-mono-data text-mono-data px-sm" type="date" value="2023-10-01"/>
+</div>
+<div class="flex-1 min-w-[200px]">
+<label class="block font-label-muted text-label-muted mb-xs text-on-surface-variant">Период по</label>
+<input class="w-full font-mono-data text-mono-data px-sm" type="date" value="2023-10-31"/>
+</div>
+<div class="flex-1 min-w-[200px]">
+<label class="block font-label-muted text-label-muted mb-xs text-on-surface-variant">Сервисный центр</label>
+<select class="w-full font-body-md text-body-md px-sm">
+<option>Все центры</option>
+<option>ЦС-1 (Север)</option>
+<option>ЦС-2 (Юг)</option>
+</select>
+</div>
+<div class="flex gap-sm w-full md:w-auto pt-sm md:pt-0">
+<button class="flex-1 md:flex-none h-target-min px-md bg-primary text-on-primary font-label-caps text-label-caps border border-primary hover:bg-primary-container transition-colors">ПОКАЗАТЬ</button>
+<button class="flex-1 md:flex-none h-target-min px-md bg-white-strict text-on-surface border border-on-surface font-label-caps text-label-caps hover:bg-surface-variant transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-sm" data-icon="print">print</span>
+                    ПЕЧАТЬ
+                </button>
+<button class="flex-1 md:flex-none h-target-min px-md bg-white-strict text-on-surface border border-on-surface font-label-caps text-label-caps hover:bg-surface-variant transition-colors flex items-center justify-center gap-xs">
+<span class="material-symbols-outlined text-sm" data-icon="table_view">table_view</span>
+                    EXCEL
+                </button>
+</div>
+</section>
+<!-- KPI Row -->
+<section>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="bg-white-strict sharp-border p-md">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-xs">КАССА НА НАЧАЛО</div>
+<div class="font-mono-total text-mono-total text-right">124,500.00 ₽</div>
+</div>
+<div class="bg-white-strict sharp-border p-md">
+<div class="font-label-caps text-label-caps text-on-surface-variant mb-xs">ПРИХОД НАЛ</div>
+<div class="font-mono-total text-mono-total text-right">85,200.00 ₽</div>
+</div>
+<div class="bg-white-strict sharp-border p-md border-error">
+<div class="font-label-caps text-label-caps text-error mb-xs">РАСХОД+ИНКАССАЦИЯ</div>
+<div class="font-mono-total text-mono-total text-right text-error">-45,000.00 ₽</div>
+</div>
+<div class="bg-white-strict sharp-border p-md bg-primary-fixed border-primary">
+<div class="font-label-caps text-label-caps text-on-primary-fixed mb-xs">КАССА НА КОНЕЦ</div>
+<div class="font-mono-total text-mono-total text-right font-bold">164,700.00 ₽</div>
+</div>
+</div>
+<p class="font-label-muted text-label-muted text-outline mt-sm text-right italic">
+                начало + касса − расход − инкасация (терминал не в кассе)
+            </p>
+</section>
+<!-- Main Data Sections Grid -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-lg">
+<!-- Приход -->
+<section class="bg-white-strict sharp-border xl:col-span-2">
+<div class="p-md border-b-only bg-surface-container-low flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md uppercase tracking-tight">ПРИХОД</h2>
+<span class="font-mono-total text-mono-total">85,200.00 ₽</span>
+</div>
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse min-w-[600px]">
+<thead>
+<tr class="border-b-only bg-surface">
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-32">ДАТА/ВРЕМЯ</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-48 text-right">КАССА (НАЛ)</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-48 text-right">ТЕРМИНАЛ (БЕЗНАЛ)</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant pl-lg">ОСНОВАНИЕ / СОТРУДНИК</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b-only hover:bg-surface-variant">
+<td class="p-sm font-mono-data text-mono-data">12.10 09:15</td>
+<td class="p-sm font-mono-data text-mono-data text-right">12,500.00</td>
+<td class="p-sm font-mono-data text-mono-data text-right text-outline">0.00</td>
+<td class="p-sm pl-lg">
+<div class="font-bold">Ремонт #4052</div>
+<div class="font-label-muted text-label-muted">Иванов А.</div>
+</td>
+</tr>
+<tr class="border-b-only hover:bg-surface-variant">
+<td class="p-sm font-mono-data text-mono-data">12.10 11:30</td>
+<td class="p-sm font-mono-data text-mono-data text-right text-outline">0.00</td>
+<td class="p-sm font-mono-data text-mono-data text-right">8,400.00</td>
+<td class="p-sm pl-lg">
+<div class="font-bold">Продажа ЗЧ #4053</div>
+<div class="font-label-muted text-label-muted">Петров В.</div>
+</td>
+</tr>
+<tr class="border-b-only hover:bg-surface-variant">
+<td class="p-sm font-mono-data text-mono-data">13.10 14:20</td>
+<td class="p-sm font-mono-data text-mono-data text-right">72,700.00</td>
+<td class="p-sm font-mono-data text-mono-data text-right text-outline">0.00</td>
+<td class="p-sm pl-lg">
+<div class="font-bold">ТО Кофемашин #4055</div>
+<div class="font-label-muted text-label-muted">Сидоров Е.</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Расход -->
+<section class="bg-white-strict sharp-border">
+<div class="p-md border-b-only bg-surface-container-low flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md uppercase tracking-tight">РАСХОД</h2>
+<span class="font-mono-total text-mono-total text-error">15,000.00 ₽</span>
+</div>
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse min-w-[400px]">
+<thead>
+<tr class="border-b-only bg-surface">
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-24">ДАТА</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-32 text-right">СУММА</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant pl-md">ОПИСАНИЕ</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b-only hover:bg-surface-variant">
+<td class="p-sm font-mono-data text-mono-data">14.10</td>
+<td class="p-sm font-mono-data text-mono-data text-right">5,000.00</td>
+<td class="p-sm pl-md">
+<div>Канцтовары</div>
+</td>
+</tr>
+<tr class="border-b-only hover:bg-surface-variant">
+<td class="p-sm font-mono-data text-mono-data">15.10</td>
+<td class="p-sm font-mono-data text-mono-data text-right">10,000.00</td>
+<td class="p-sm pl-md">
+<div>ГСМ (Водитель)</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Инкассация -->
+<section class="bg-white-strict sharp-border">
+<div class="p-md border-b-only bg-surface-container-low flex justify-between items-center">
+<h2 class="font-headline-md text-headline-md uppercase tracking-tight">ИНКАССАЦИЯ</h2>
+<span class="font-mono-total text-mono-total text-error">30,000.00 ₽</span>
+</div>
+<div class="overflow-x-auto w-full">
+<table class="w-full text-left border-collapse min-w-[400px]">
+<thead>
+<tr class="border-b-only bg-surface">
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-24">ДАТА</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant w-32 text-right">СУММА</th>
+<th class="p-sm font-label-caps text-label-caps text-on-surface-variant pl-md">ПОЛУЧАТЕЛЬ / ТИП</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b-only hover:bg-surface-variant">
+<td class="p-sm font-mono-data text-mono-data">20.10</td>
+<td class="p-sm font-mono-data text-mono-data text-right">30,000.00</td>
+<td class="p-sm pl-md">
+<div class="font-bold">ООО "ГлавКасса"</div>
+<div class="font-label-muted text-label-muted">Плановая</div>
+</td>
+</tr>
+<!-- Empty rows to maintain structure if needed -->
+<tr class="border-b-only h-12 hover:bg-surface-variant">
+<td></td><td></td><td></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+<!-- Sticky Totals Bar (Mobile Only) -->
+<div class="fixed bottom-0 left-0 w-full bg-white-strict border-t border-outline p-md md:hidden flex justify-between items-center z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+<div>
+<div class="font-label-caps text-label-caps text-on-surface-variant">ИТОГ (КОНЕЦ)</div>
+<div class="font-mono-total text-mono-total">164,700.00 ₽</div>
+</div>
+<button class="h-target-min px-md bg-primary text-on-primary font-label-caps text-label-caps border border-primary">
+            СВЕРИТЬ
+        </button>
+</div>
+</body></html>

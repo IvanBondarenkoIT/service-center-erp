@@ -1,0 +1,22 @@
+<span class="label-caps">{{ t('orders.history') }}</span>
+{% if machine %}
+<p class="muted">
+  <span class="order-sn">{{ machine.serial_number }}</span>
+  · {{ machine.model_name }}
+  {% if machine.needs_serial %}<span class="badge warn">{{ t('orders.needs_sn') }}</span>{% endif %}
+</p>
+{% endif %}
+
+{% if history %}
+  {% for h in history %}
+  <div class="history-item">
+    <div class="order-card-top">
+      <a class="order-date" href="/orders/{{ h.id }}">{{ h.order_date.strftime('%d.%m.%Y') }}</a>
+      <span class="order-total">{{ '%.2f'|format(h.total_amount) }} {{ t('orders.currency') }}</span>
+    </div>
+    <div>{% if h.issue_reason %}{{ h.issue_reason.name }}{% endif %}{% if h.comment %} · {{ h.comment }}{% endif %}</div>
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="muted">{{ t('orders.history_empty') }}</p>
+{% endif %}

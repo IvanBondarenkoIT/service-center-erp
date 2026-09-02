@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}{{ t('reports.title') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('reports.title') }}</h1>
+</div>
+
+<form method="get" action="/reports" class="card order-filters">
+  <div>
+    <label>{{ t('reports.period_from') }}</label>
+    <input type="date" name="date_from" value="{{ date_from }}" />
+  </div>
+  <div>
+    <label>{{ t('reports.period_to') }}</label>
+    <input type="date" name="date_to" value="{{ date_to }}" />
+  </div>
+  <div>
+    <label>{{ t('reports.center') }}</label>
+    <select name="center_id">
+      <option value="">{{ t('reports.all_centers') }}</option>
+      {% for c in centers %}
+      <option value="{{ c.id }}" {% if center_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">{{ t('reports.show') }}</button>
+</form>
+
+<section class="card flush" data-orders-count="{{ orders_count }}" data-total="{{ '%.2f'|format(total) }}">
+  <div class="section-head">
+    <h2>{{ t('reports.by_center') }}</h2>
+    <span class="order-total">{{ '%.2f'|format(total) }} {{ t('orders.currency') }}</span>
+  </div>
+  <table class="data">
+    <tbody>
+      {% for name, amount in by_center %}
+      <tr data-center="{{ name }}" data-amount="{{ '%.2f'|format(amount) }}">
+        <td>{{ name }}</td>
+        <td class="order-sn">{{ '%.2f'|format(amount) }} {{ t('orders.currency') }}</td>
+      </tr>
+      {% else %}
+      <tr><td class="muted" colspan="2">{{ t('reports.empty') }}</td></tr>
+      {% endfor %}
+      <tr>
+        <td><strong>{{ t('reports.total') }}</strong> · {{ t('reports.orders_count') }}: {{ orders_count }}</td>
+        <td class="order-total">{{ '%.2f'|format(total) }} {{ t('orders.currency') }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<div class="grid-2">
+  <section class="card flush">
+    <div class="section-head">
+      <h2>{{ t('reports.by_payment') }}</h2>
+    </div>
+    <table class="data">
+      <tbody>
+        {% for name, amount in by_payment %}
+        <tr data-payment="{{ name }}" data-amount="{{ '%.2f'|format(amount) }}">
+          <td>{{ t('payment_type.' + name) }}</td>
+          <td class="order-sn">{{ '%.2f'|format(amount) }} {{ t('orders.currency') }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="muted" colspan="2">{{ t('reports.empty') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  <section class="card flush">
+    <div class="section-head">
+      <h2>{{ t('reports.top_reasons') }}</h2>
+    </div>
+    <table class="data">
+      <tbody>
+        {% for name, cnt in top_reasons %}
+        <tr>
+          <td class="order-sn">{{ '%02d'|format(loop.index) }}</td>
+          <td>{{ name }}</td>
+          <td class="order-sn">{{ cnt }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="muted" colspan="3">{{ t('reports.empty') }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<section class="card card-warn flush">
+  <div class="section-head">
+    <h2>{{ t('reports.repeat') }}</h2>
+  </div>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>{{ t('orders.serial') }}</th>
+        <th>{{ t('orders.model') }}</th>
+        <th>{{ t('reports.visits') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for serial, model, cnt in repeat_machines %}
+      <tr>
+        <td class="order-sn">{{ serial }}</td>
+        <td>{{ model }}</td>
+        <td class="order-sn">{{ cnt }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="muted">{{ t('reports.empty') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

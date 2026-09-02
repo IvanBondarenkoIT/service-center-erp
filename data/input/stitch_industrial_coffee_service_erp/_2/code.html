@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+
+<html lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>НОВЫЙ ЗАКАЗ - SERVICE CENTER</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#1c1b1b",
+                    "inverse-surface": "#313030",
+                    "surface-container-low": "#f6f3f2",
+                    "surface-container-high": "#eae7e7",
+                    "on-secondary-container": "#636262",
+                    "outline": "#727974",
+                    "primary-fixed-dim": "#adcebe",
+                    "on-surface-variant": "#414845",
+                    "on-secondary-fixed-variant": "#464747",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#1c1b1b",
+                    "surface-variant": "#e5e2e1",
+                    "surface": "#fcf9f8",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#e1dfdf",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed-dim": "#c6c7c3",
+                    "outline-variant": "#c1c8c3",
+                    "secondary": "#5e5e5e",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-error-container": "#93000a",
+                    "tertiary": "#2d2f2c",
+                    "on-tertiary-fixed-variant": "#464744",
+                    "surface-container": "#f0eded",
+                    "primary-fixed": "#c8eada",
+                    "on-error": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-container": "#b2b2ae",
+                    "on-tertiary-fixed": "#1a1c1a",
+                    "primary-container": "#2c4a3e",
+                    "secondary-fixed": "#e4e2e2",
+                    "secondary-fixed-dim": "#c7c6c6",
+                    "surface-dim": "#dcd9d9",
+                    "tertiary-fixed": "#e3e3de",
+                    "on-primary-fixed-variant": "#2f4d41",
+                    "surface-bright": "#fcf9f8",
+                    "background": "#F4F4F1", /* Enforced background color */
+                    "tertiary-container": "#434542",
+                    "on-primary-container": "#98b9a9",
+                    "surface-tint": "#466558",
+                    "inverse-on-surface": "#f3f0ef",
+                    "inverse-primary": "#adcebe",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "error-container": "#ffdad6",
+                    "primary": "#153328",
+                    "on-primary-fixed": "#012016",
+                    "on-secondary": "#ffffff",
+                    "border-color": "#D4D4D0",
+                    "border-active": "#1A1A1A"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "0px"
+            },
+            "spacing": {
+                    "target-min": "44px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "margin-mobile": "16px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "base": "4px",
+                    "gutter": "16px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "mono-total": ["IBM Plex Mono", "monospace"],
+                    "headline-lg": ["IBM Plex Sans", "sans-serif"],
+                    "label-muted": ["IBM Plex Sans", "sans-serif"],
+                    "body-md": ["IBM Plex Sans", "sans-serif"],
+                    "headline-md": ["IBM Plex Sans", "sans-serif"],
+                    "body-lg": ["IBM Plex Sans", "sans-serif"],
+                    "label-caps": ["IBM Plex Sans", "sans-serif"],
+                    "mono-data": ["IBM Plex Mono", "monospace"]
+            },
+            "fontSize": {
+                    "mono-total": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "headline-lg": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "label-muted": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                    "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "mono-data": ["14px", {"lineHeight": "20px", "fontWeight": "500"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        body { background-color: #F4F4F1; }
+        .input-field {
+            border: 1px solid #D4D4D0;
+            background-color: #ffffff;
+            height: 44px;
+            padding: 0 12px;
+            font-family: "IBM Plex Sans", sans-serif;
+            width: 100%;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #1A1A1A;
+        }
+        .input-mono {
+            font-family: "IBM Plex Mono", monospace;
+        }
+        .label-text {
+            color: #636262;
+            margin-bottom: 4px;
+            display: block;
+        }
+        .section-container {
+            border: 1px solid #D4D4D0;
+            background-color: #ffffff;
+            margin-bottom: 16px;
+            padding: 16px;
+        }
+        .chip {
+            border: 1px solid #D4D4D0;
+            padding: 4px 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .chip.active {
+            border-color: #1A1A1A;
+            background-color: #1A1A1A;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface pb-[140px] pt-[60px] md:pt-0">
+<!-- TopAppBar -->
+<header class="fixed md:hidden flex justify-between items-center w-full px-margin-mobile h-target-min bg-surface dark:bg-inverse-surface border-b border-outline top-0 z-50">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-2" data-icon="arrow_back">arrow_back</span>
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-inverse-primary">НОВЫЙ ЗАКАЗ</span>
+</div>
+</header>
+<main class="max-w-3xl mx-auto md:mt-8 px-margin-mobile">
+<!-- Шапка -->
+<section class="section-container">
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="font-label-muted text-label-muted label-text">ДАТА</label>
+<div class="font-body-md text-body-md h-target-min flex items-center border border-border-color px-3 bg-surface-container-low">24.10.2023 14:30</div>
+</div>
+<div>
+<label class="font-label-muted text-label-muted label-text">ИСПОЛНИТЕЛЬ</label>
+<div class="font-body-md text-body-md h-target-min flex items-center border border-border-color px-3 bg-surface-container-low">Иванов И.И.</div>
+</div>
+</div>
+<div class="mt-4">
+<label class="font-label-muted text-label-muted label-text">СЕРВИСНЫЙ ЦЕНТР</label>
+<div class="font-body-md text-body-md h-target-min flex items-center border border-border-color px-3 bg-surface-container-low">SC Main Warehouse</div>
+</div>
+</section>
+<!-- Аппарат -->
+<section class="section-container">
+<h2 class="font-headline-md text-headline-md mb-4 border-b border-border-color pb-2">АППАРАТ</h2>
+<div class="mb-4">
+<label class="font-label-muted text-label-muted label-text">СЕРИЙНЫЙ НОМЕР *</label>
+<input class="input-field input-mono text-mono-total font-mono-total" placeholder="SN123456789" type="text"/>
+</div>
+<div class="mb-4">
+<label class="font-label-muted text-label-muted label-text">МОДЕЛЬ</label>
+<input class="input-field font-body-md text-body-md" placeholder="Начните вводить модель..." type="text"/>
+</div>
+<div class="border border-border-color p-2 bg-surface-container-low">
+<span class="font-label-caps text-label-caps text-secondary block mb-1">ИСТОРИЯ SN</span>
+<div class="font-mono-data text-mono-data text-xs text-secondary">12.09.2023 - Замена помпы</div>
+<div class="font-mono-data text-mono-data text-xs text-secondary">05.01.2023 - Чистка</div>
+</div>
+</section>
+<!-- Клиент -->
+<section class="section-container">
+<h2 class="font-headline-md text-headline-md mb-4 border-b border-border-color pb-2">КЛИЕНТ</h2>
+<div class="mb-4">
+<label class="font-label-muted text-label-muted label-text">ТЕЛЕФОН</label>
+<input class="input-field input-mono font-mono-data text-mono-data" placeholder="+7 (999) 000-00-00" type="tel"/>
+</div>
+<div>
+<label class="font-label-muted text-label-muted label-text">ИМЯ (необязательно)</label>
+<input class="input-field font-body-md text-body-md" placeholder="Имя клиента" type="text"/>
+</div>
+</section>
+<!-- Описание -->
+<section class="section-container">
+<h2 class="font-headline-md text-headline-md mb-4 border-b border-border-color pb-2">ОПИСАНИЕ</h2>
+<div class="mb-4">
+<label class="font-label-muted text-label-muted label-text">ПРИЧИНА ОБРАЩЕНИЯ</label>
+<textarea class="input-field font-body-md text-body-md py-2 min-h-[80px]" placeholder="Не включается, течет..."></textarea>
+</div>
+<div>
+<label class="font-label-muted text-label-muted label-text">КОММЕНТАРИЙ</label>
+<textarea class="input-field font-body-md text-body-md py-2 min-h-[80px]" placeholder="Срочно"></textarea>
+</div>
+</section>
+<!-- Строки -->
+<section class="section-container">
+<div class="flex justify-between items-center mb-4 border-b border-border-color pb-2">
+<h2 class="font-headline-md text-headline-md">СТРОКИ ЗАКАЗА</h2>
+</div>
+<div class="border border-border-color p-3 mb-4">
+<div class="flex justify-between items-start mb-2">
+<div class="flex flex-wrap gap-2">
+<span class="chip font-label-caps text-label-caps active">Работа</span>
+<span class="chip font-label-caps text-label-caps">Запчасть</span>
+<span class="chip font-label-caps text-label-caps">Расход</span>
+</div>
+<span class="material-symbols-outlined text-secondary cursor-pointer hover:text-error" data-icon="delete">delete</span>
+</div>
+<input class="input-field font-body-md text-body-md mb-3" placeholder="Наименование работ/детали" type="text"/>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="chip font-label-caps text-label-caps active">Cash</span>
+<span class="chip font-label-caps text-label-caps">Card</span>
+<span class="chip font-label-caps text-label-caps">Гарантия</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="font-label-muted text-label-muted label-text">РАБОТА</label>
+<input class="input-field input-mono font-mono-data text-mono-data text-right" placeholder="0.00" type="text"/>
+</div>
+<div>
+<label class="font-label-muted text-label-muted label-text">ЗАПЧАСТИ</label>
+<input class="input-field input-mono font-mono-data text-mono-data text-right" placeholder="0.00" type="text"/>
+</div>
+</div>
+</div>
+<button class="w-full h-target-min border border-active bg-white text-on-surface font-label-caps text-label-caps flex items-center justify-center gap-2 hover:bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="add">add</span> ДОБАВИТЬ СТРОКУ
+            </button>
+</section>
+</main>
+<!-- Sticky Bottom Button -->
+<div class="fixed bottom-[50px] md:bottom-0 left-0 w-full p-4 bg-background border-t border-border-color z-40">
+<div class="max-w-3xl mx-auto">
+<button class="w-full h-target-min bg-primary-container text-white font-label-caps text-label-caps uppercase hover:bg-opacity-90">
+                СОХРАНИТЬ
+            </button>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed md:hidden bottom-0 left-0 w-full z-50 flex justify-around items-center bg-surface dark:bg-inverse-surface h-target-min border-t border-outline">
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant py-2 w-full cursor-pointer hover:bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-label-caps text-label-caps">Заказы</span>
+</div>
+<div class="flex flex-col items-center justify-center text-primary dark:text-inverse-primary border-t-2 border-primary py-2 w-full cursor-pointer opacity-100 scale-100 bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="add_box">add_box</span>
+<span class="font-label-caps text-label-caps font-bold">Новый</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant py-2 w-full cursor-pointer hover:bg-surface-container-low">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-caps text-label-caps">Касса</span>
+</div>
+</nav>
+<!-- Desktop Sidebar Placeholder -->
+<aside class="hidden md:flex flex-col w-64 fixed h-full bg-surface border-r border-outline left-0 top-0 pt-8 z-50">
+<div class="px-6 mb-8">
+<span class="font-headline-md text-headline-md font-bold text-primary">SERVICE CENTER</span>
+</div>
+<nav class="flex flex-col gap-2 px-4">
+<div class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-low cursor-pointer">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-label-caps text-label-caps">Заказы</span>
+</div>
+<div class="flex items-center gap-3 p-3 bg-surface-container-high text-primary font-bold cursor-pointer border-l-4 border-primary">
+<span class="material-symbols-outlined" data-icon="add_box">add_box</span>
+<span class="font-label-caps text-label-caps">Новый</span>
+</div>
+<div class="flex items-center gap-3 p-3 text-on-surface-variant hover:bg-surface-container-low cursor-pointer">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-label-caps text-label-caps">Касса</span>
+</div>
+</nav>
+</aside>
+</body></html>

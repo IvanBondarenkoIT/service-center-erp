@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.clients') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('nav.clients') }}</h1>
+</div>
+<form method="get" class="order-filters">
+  <div class="search-field">
+    <label for="client-search">{{ t('orders.search') }}</label>
+    <div class="search-input">
+      <span class="material-symbols-outlined">search</span>
+      <input id="client-search" name="q" value="{{ q }}" placeholder="{{ t('dict.phone') }} / {{ t('dict.name') }}" />
+    </div>
+  </div>
+  <button class="btn btn-secondary" type="submit">{{ t('dict.search') }}</button>
+</form>
+<form method="post" action="/dict/clients" class="card grid-3">
+  <div><label>{{ t('dict.phone') }}</label><input name="phone" required class="input-mono" /></div>
+  <div><label>{{ t('dict.name') }}</label><input name="name" /></div>
+  <div class="align-end"><button class="btn" type="submit">{{ t('dict.add') }}</button></div>
+</form>
+<div class="order-list">
+  {% for c in clients %}
+  <div class="sheet-row">
+    <span class="label-caps">{{ t('orders.client') }}</span>
+    <span class="order-model">{{ c.name or '—' }}</span>
+    <span class="order-sn">{{ c.phone }}</span>
+  </div>
+  {% else %}
+  <p class="muted order-empty">{{ t('dict.empty') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

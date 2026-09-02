@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.machines') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('nav.machines') }}</h1>
+</div>
+<form method="get" class="order-filters">
+  <div class="search-field">
+    <label for="machine-search">{{ t('orders.search') }}</label>
+    <div class="search-input">
+      <span class="material-symbols-outlined">search</span>
+      <input id="machine-search" name="q" value="{{ q }}" placeholder="{{ t('dict.serial') }} / {{ t('dict.model') }}" />
+    </div>
+  </div>
+  <button class="btn btn-secondary" type="submit">{{ t('dict.search') }}</button>
+</form>
+<form method="post" action="/dict/machines" class="card grid-3">
+  <div><label>{{ t('dict.serial') }}</label><input name="serial_number" required class="input-mono" /></div>
+  <div><label>{{ t('dict.model') }}</label><input name="model_name" /></div>
+  <div><label>{{ t('dict.erp_id') }}</label><input name="erp_goods_id" class="input-mono" /></div>
+  <div class="align-end"><button class="btn" type="submit">{{ t('dict.add_update') }}</button></div>
+</form>
+<div class="order-list">
+  {% for m in machines %}
+  <div class="sheet-row">
+    <div class="order-card-top">
+      <span class="order-sn">SN: {{ m.serial_number }}</span>
+      {% if m.needs_serial %}<span class="badge warn">{{ t('orders.needs_sn') }}</span>{% endif %}
+    </div>
+    <span class="order-model">{{ m.model_name or '—' }}</span>
+    {% if m.erp_goods_id %}<span class="order-sn">ERP #{{ m.erp_goods_id }}</span>{% endif %}
+  </div>
+  {% else %}
+  <p class="muted order-empty">{{ t('dict.empty') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

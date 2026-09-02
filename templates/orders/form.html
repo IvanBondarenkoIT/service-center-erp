@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}{% if order %}{{ t('orders.edit') }} #{{ order.id }}{% else %}{{ t('orders.new') }}{% endif %} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+{% set current_status = order.status.value if order else 'in_progress' %}
+<div class="toolbar">
+  <h1>{% if order %}{{ t('orders.edit') }} #{{ order.id }}{% else %}{{ t('orders.new') }}{% endif %}</h1>
+  <a class="btn btn-secondary" href="/">{{ t('orders.back') }}</a>
+</div>
+
+<form method="post" action="/orders/save" class="order-form stack">
+  {% if order %}<input type="hidden" name="order_id" value="{{ order.id }}" />{% endif %}
+  {% if order %}<input type="hidden" name="machine_id" value="{{ order.machine_id }}" />{% endif %}
+
+  <section class="card">
+    <div class="grid-2">
+      <div>
+        <label for="order_date">{{ t('orders.date') }}</label>
+        <input id="order_date" type="date" name="order_date" required
+          value="{% if order %}{{ order.order_date.isoformat() }}{% else %}{{ today }}{% endif %}" />
+      </div>
+      <div>
+        <label>{{ t('orders.assignee') }}</label>
+        {% if user.role.value == 'admin' %}
+        <select name="assignee_id">
+          {% for m in mechanics %}
+          <option value="{{ m.id }}"
+            {% if order and order.assignee_id == m.id %}selected
+            {% elif not order and user.id == m.id %}selected{% endif %}>
+            {{ m.full_name or m.login }}
+          </option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="text" value="{{ user.full_name or user.login }}" readonly />
+        <input type="hidden" name="assignee_id" value="{{ user.id }}" />
+        {% endif %}
+      </div>
+    </div>
+    <div class="field-gap">
+      <label>{{ t('orders.center') }}</label>
+      <select name="service_center_id" {% if user.role.value != 'admin' and user.service_center_id %}disabled{% endif %}>
+        {% for c in centers %}
+        <option value="{{ c.id }}"
+          {% if order and order.service_center_id == c.id %}selected
+          {% elif not order and user.service_center_id == c.id %}selected{% endif %}>
+          {{ c.name }}
+        </option>
+        {% endfor %}
+      </select>
+      {% if user.role.value != 'admin' and user.service_center_id %}
+      <input type="hidden" name="service_center_id" value="{{ user.service_center_id }}" />
+      {% endif %}
+    </div>
+    <div class="field-gap">
+      <label>{{ t('orders.status') }}</label>
+      <div class="chip-row" data-input="status">
+        {% for s in statuses %}
+        <button type="button" class="chip {% if current_status == s.value %}active{% endif %}" data-value="{{ s.value }}">
+          {{ t('status.' + s.value) }}
+        </button>
+        {% endfor %}
+        <input type="hidden" name="status" value="{{ current_status }}" />
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>{{ t('orders.machine') }}</h2>
+    <div>
+      <label for="new_machine_serial">{{ t('orders.serial') }} *</label>
+      <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono" required
+        placeholder="SN"
+        value="{% if order and order.machine %}{{ order.machine.serial_number }}{% endif %}"
+        hx-get="/orders/partials/history"
+        hx-trigger="keyup changed delay:400ms"
+        hx-target="#history-box"
+        hx-vals="js:{serial: document.getElementById('new_machine_serial').value}" />
+    </div>
+    <div class="field-gap">
+      <label for="new_machine_model">{{ t('orders.model') }}</label>
+      <input id="new_machine_model" name="new_machine_model" type="text"
+        value="{% if order and order.machine %}{{ order.machine.model_name }}{% endif %}"
+        hx-get="/dict/erp-suggest"
+        hx-trigger="keyup changed delay:300ms"
+        hx-target="#erp-model-suggest"
+        hx-vals="js:{q: document.getElementById('new_machine_model').value, kind: 'machine'}" />
+      <input type="hidden" id="erp_goods_id" name="erp_goods_id" value="" />
+      <div id="erp-model-suggest"></div>
+    </div>
+    <div class="history-box field-gap" id="history-box">
+      {% include "orders/_history.html" %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>{{ t('orders.client') }}</h2>
+    <div>
+      <label for="new_client_phone">{{ t('orders.phone') }}</label>
+      <input id="new_client_phone" name="new_client_phone" type="tel" class="input-mono"
+        placeholder="555-12-34-56"
+        value="{% if order and order.client %}{{ order.client.phone }}{% endif %}" />
+    </div>
+    <div class="field-gap">
+      <label for="new_client_name">{{ t('orders.name_optional') }}</label>
+      <input id="new_client_name" name="new_client_name" type="text"
+        value="{% if order and order.client %}{{ order.client.name }}{% endif %}" />
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>{{ t('orders.description') }}</h2>
+    <div>
+      <label>{{ t('orders.reason') }}</label>
+      <select name="issue_reason_id">
+        <option value="">—</option>
+        {% for r in reasons %}
+        <option value="{{ r.id }}" {% if order and order.issue_reason_id == r.id %}selected{% endif %}>{{ r.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field-gap">
+      <label for="comment">{{ t('orders.comment') }}</label>
+      <textarea id="comment" name="comment">{% if order %}{{ order.comment }}{% endif %}</textarea>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="toolbar">
+      <h2>{{ t('orders.lines') }}</h2>
+    </div>
+    <div id="lines-body" class="stack">
+      {% if order and order.lines %}
+        {% for line in order.lines %}
+          {% include "orders/_line_row.html" %}
+        {% endfor %}
+      {% else %}
+        {% set line = None %}
+        {% include "orders/_line_row.html" %}
+      {% endif %}
+    </div>
+    <button class="btn btn-secondary btn-block" type="button"
+      hx-get="/orders/partials/line-row"
+      hx-target="#lines-body"
+      hx-swap="beforeend">{{ t('orders.add_line') }}</button>
+  </section>
+
+  <div class="form-save-bar">
+    <button class="btn btn-login" type="submit">{{ t('orders.save') }}</button>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,9 @@
+{% if items %}
+<div class="suggest-box">
+  {% for i in items %}
+  <a href="#" onclick="applyErpModel({{ i.erp_goods_id }}, {{ i.name|tojson }}); return false;">
+    {{ i.name }} <span class="order-sn muted">#{{ i.erp_goods_id }}</span>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}

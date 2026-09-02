@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.erp_catalog') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('nav.erp_catalog') }}</h1>
+  <div class="chip-row tight">
+    <form method="post" action="/dict/erp-catalog/sync">
+      <input type="hidden" name="mode" value="incremental" />
+      <button class="btn" type="submit">{{ t('dict.sync_incremental') }}</button>
+    </form>
+    <form method="post" action="/dict/erp-catalog/sync">
+      <input type="hidden" name="mode" value="full" />
+      <button class="btn btn-secondary" type="submit">{{ t('dict.sync_full') }}</button>
+    </form>
+  </div>
+</div>
+
+{% if sync_msg %}
+<div class="card">
+  {% if sync_msg.startswith('ok') %}
+  <p>{{ sync_msg }}</p>
+  {% elif sync_msg == 'proxy_not_configured' %}
+  <p class="error">PROXY_API_URL / PROXY_API_TOKEN</p>
+  {% else %}
+  <p class="muted">{{ sync_msg }}</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="kpi-grid kpi-pair">
+  <div class="kpi">
+    <span class="label-caps">{{ t('dict.machines_count') }}</span>
+    <span class="order-total">{{ cache_count_machines }}</span>
+  </div>
+  <div class="kpi">
+    <span class="label-caps">{{ t('dict.parts_count') }}</span>
+    <span class="order-total">{{ cache_count_parts }}</span>
+  </div>
+</div>
+<p class="muted">{{ t('dict.cache_hint') }}</p>
+{% if sync_status %}
+  {% for s in sync_status %}
+  <div class="muted">
+    <span class="label-caps">{{ s.scope }}</span>
+    {% if s.last_sync_at %}<span class="order-sn">{{ s.last_sync_at.strftime('%d.%m.%Y') }}</span>{% endif %}
+    {% if s.sync_in_progress %}<span class="badge warn">{{ t('dict.in_progress') }}</span>{% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <p class="muted">{{ t('dict.never_synced') }}</p>
+{% endif %}
+
+<form method="get" class="order-filters">
+  <div class="search-field">
+    <label for="erp-search">{{ t('orders.search') }}</label>
+    <div class="search-input">
+      <span class="material-symbols-outlined">search</span>
+      <input id="erp-search" name="q" value="{{ q }}" />
+    </div>
+  </div>
+  <div>
+    <label>{{ t('dict.kind') }}</label>
+    <select name="kind">
+      <option value="machine" {% if kind == 'machine' %}selected{% endif %}>{{ t('dict.kind_machine') }}</option>
+      <option value="part" {% if kind == 'part' %}selected{% endif %}>{{ t('dict.kind_part') }}</option>
+    </select>
+  </div>
+  <button class="btn btn-secondary" type="submit">{{ t('dict.search') }}</button>
+</form>
+
+<div class="order-list">
+  {% for i in items %}
+  <div class="sheet-row">
+    <div class="order-card-top">
+      <span class="order-sn">#{{ i.erp_goods_id }}</span>
+      <span class="badge">{{ i.kind }}</span>
+    </div>
+    <span class="order-model">{{ i.name }}</span>
+    <span class="muted">{% if i.synced_at %}{{ i.synced_at.strftime('%d.%m.%Y') }}{% else %}—{% endif %}</span>
+  </div>
+  {% else %}
+  <p class="muted order-empty">{{ t('dict.cache_empty') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

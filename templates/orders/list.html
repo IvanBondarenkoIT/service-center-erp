@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ t('orders.title') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('orders.title') }}{% if user.role.value != 'admin' %} · {{ t('orders.mine') }}{% endif %}</h1>
+  <a class="btn desktop-only" href="/orders/new">{{ t('orders.new') }}</a>
+</div>
+
+<form method="get" action="/" class="order-filters">
+  <div class="search-field">
+    <label for="search">{{ t('orders.search') }}</label>
+    <div class="search-input">
+      <span class="material-symbols-outlined">search</span>
+      <input id="search" type="text" name="q" value="{{ q }}" placeholder="{{ t('orders.search_placeholder') }}" />
+    </div>
+  </div>
+  {% if status %}<input type="hidden" name="status" value="{{ status }}" />{% endif %}
+  <button class="btn btn-secondary" type="submit">{{ t('orders.search') }}</button>
+</form>
+
+<div class="chip-row filter-chips">
+  <a class="chip {% if not status %}active{% endif %}" href="/{% if q %}?q={{ q|urlencode }}{% endif %}">{{ t('orders.filter_all') }}</a>
+  {% for s in statuses %}
+  <a class="chip {% if status == s.value %}active{% endif %}"
+     href="/?status={{ s.value }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{{ t('status.' + s.value) }}</a>
+  {% endfor %}
+</div>
+
+<div class="order-list">
+  {% for o in orders %}
+  <a class="order-card" href="/orders/{{ o.id }}" data-status="{{ o.status.value }}" data-order-id="{{ o.id }}">
+    <div class="order-card-top">
+      <span class="order-date">{{ o.order_date.strftime('%d.%m.%Y') }}</span>
+      <div class="order-badges">
+        {% if o.machine and o.machine.needs_serial %}
+        <span class="badge warn">{{ t('orders.needs_sn') }}</span>
+        {% endif %}
+        <span class="badge-status {{ o.status.value }}">{{ t('status.' + o.status.value) }}</span>
+      </div>
+    </div>
+    <div class="order-card-mid">
+      <span class="order-model">{{ o.machine.model_name or '—' }}</span>
+      <span class="order-sn">SN: {{ o.machine.serial_number }}</span>
+    </div>
+    <div class="order-card-bottom">
+      <div>
+        <span class="label-caps">{{ t('orders.client') }}</span>
+        <span class="order-client">
+          {% if o.client %}{{ o.client.name or '—' }} / {{ o.client.phone }}{% else %}—{% endif %}
+        </span>
+      </div>
+      <span class="order-total">{{ '%.2f'|format(o.total_amount) }} {{ t('orders.currency') }}</span>
+    </div>
+  </a>
+  {% else %}
+  <p class="muted order-empty">{{ t('orders.empty') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

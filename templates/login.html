@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ t('auth.login_title') }} — {{ t('app.name') }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Georgian:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-locale">
+      {% set next_path = '/login' %}
+      {% include "partials/locale_switch.html" %}
+    </div>
+    <div class="login-card stack">
+      <header class="login-header">
+        <h1>{{ t('app.name') }}</h1>
+        <p class="muted">«{{ t('app.tagline') }}»</p>
+      </header>
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <form method="post" action="/login" class="stack">
+        <div>
+          <label for="login">{{ t('auth.login') }}</label>
+          <input id="login" name="login" type="text" autocomplete="username" required />
+        </div>
+        <div>
+          <label for="password">{{ t('auth.password') }}</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <button class="btn btn-login" type="submit">{{ t('auth.submit') }}</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

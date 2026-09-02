@@ -1,0 +1,10 @@
+{% set next_path = next_path if next_path is defined else request.url.path %}
+<div class="locale-switch" role="group" aria-label="Language">
+  {% for loc in supported_locales %}
+  <form method="post" action="/locale">
+    <input type="hidden" name="locale" value="{{ loc }}" />
+    <input type="hidden" name="next" value="{{ next_path }}" />
+    <button type="submit" class="{% if locale == loc %}active{% endif %}">{{ t('locale.' + loc) }}</button>
+  </form>
+  {% endfor %}
+</div>

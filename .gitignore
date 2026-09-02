@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.ruff_cache/
+scerp_local.db
+*.db
+data/input/*.xlsx
+*_analysis.txt

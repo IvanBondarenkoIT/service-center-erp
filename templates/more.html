@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.more') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="card more-list">
+  <h1>{{ t('nav.more') }}</h1>
+  <a href="/cash">{{ t('nav.cash') }}</a>
+  <a href="/cash/entries">{{ t('cash.enter') }}</a>
+  <a href="/reports">{{ t('nav.reports') }}</a>
+  <a href="/dict/clients">{{ t('nav.clients') }}</a>
+  <a href="/dict/machines">{{ t('nav.machines') }}</a>
+  <a href="/dict/reasons">{{ t('nav.reasons') }}</a>
+  <a href="/dict/erp-catalog">{{ t('nav.erp_catalog') }}</a>
+</div>
+{% endblock %}

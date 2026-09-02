@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+
+<html class="light" lang="ru"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<title>Service Center - Касса</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: IBM Plex Sans & IBM Plex Mono -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config from Brand Anchors -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface": "#1c1b1b",
+                    "inverse-surface": "#313030",
+                    "surface-container-low": "#f6f3f2",
+                    "surface-container-high": "#eae7e7",
+                    "on-secondary-container": "#636262",
+                    "outline": "#727974",
+                    "primary-fixed-dim": "#adcebe",
+                    "on-surface-variant": "#414845",
+                    "on-secondary-fixed-variant": "#464747",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#1c1b1b",
+                    "surface-variant": "#e5e2e1",
+                    "surface": "#fcf9f8",
+                    "error": "#ba1a1a",
+                    "secondary-container": "#e1dfdf",
+                    "on-tertiary": "#ffffff",
+                    "tertiary-fixed-dim": "#c6c7c3",
+                    "outline-variant": "#c1c8c3",
+                    "secondary": "#5e5e5e",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-error-container": "#93000a",
+                    "tertiary": "#2d2f2c",
+                    "on-tertiary-fixed-variant": "#464744",
+                    "surface-container": "#f0eded",
+                    "primary-fixed": "#c8eada",
+                    "on-error": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "on-tertiary-container": "#b2b2ae",
+                    "on-tertiary-fixed": "#1a1c1a",
+                    "primary-container": "#2c4a3e",
+                    "secondary-fixed": "#e4e2e2",
+                    "secondary-fixed-dim": "#c7c6c6",
+                    "surface-dim": "#dcd9d9",
+                    "tertiary-fixed": "#e3e3de",
+                    "on-primary-fixed-variant": "#2f4d41",
+                    "surface-bright": "#fcf9f8",
+                    "background": "#fcf9f8",
+                    "tertiary-container": "#434542",
+                    "on-primary-container": "#98b9a9",
+                    "surface-tint": "#466558",
+                    "inverse-on-surface": "#f3f0ef",
+                    "inverse-primary": "#adcebe",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "error-container": "#ffdad6",
+                    "primary": "#153328",
+                    "on-primary-fixed": "#012016",
+                    "on-secondary": "#ffffff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "0px"
+            },
+            "spacing": {
+                    "target-min": "44px",
+                    "md": "16px",
+                    "lg": "24px",
+                    "margin-mobile": "16px",
+                    "xs": "4px",
+                    "xl": "32px",
+                    "base": "4px",
+                    "gutter": "16px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "mono-total": [
+                            "IBM Plex Mono"
+                    ],
+                    "headline-lg": [
+                            "IBM Plex Sans"
+                    ],
+                    "label-muted": [
+                            "IBM Plex Sans"
+                    ],
+                    "body-md": [
+                            "IBM Plex Sans"
+                    ],
+                    "headline-md": [
+                            "IBM Plex Sans"
+                    ],
+                    "body-lg": [
+                            "IBM Plex Sans"
+                    ],
+                    "label-caps": [
+                            "IBM Plex Sans"
+                    ],
+                    "mono-data": [
+                            "IBM Plex Mono"
+                    ]
+            },
+            "fontSize": {
+                    "mono-total": [
+                            "18px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "headline-lg": [
+                            "24px",
+                            {
+                                    "lineHeight": "32px",
+                                    "letterSpacing": "-0.02em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "label-muted": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "body-md": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "headline-md": [
+                            "20px",
+                            {
+                                    "lineHeight": "28px",
+                                    "letterSpacing": "-0.01em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "body-lg": [
+                            "16px",
+                            {
+                                    "lineHeight": "24px",
+                                    "fontWeight": "400"
+                            }
+                    ],
+                    "label-caps": [
+                            "12px",
+                            {
+                                    "lineHeight": "16px",
+                                    "letterSpacing": "0.05em",
+                                    "fontWeight": "600"
+                            }
+                    ],
+                    "mono-data": [
+                            "14px",
+                            {
+                                    "lineHeight": "20px",
+                                    "fontWeight": "500"
+                            }
+                    ]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        
+        body {
+            background-color: #F4F4F1; /* Hardcoded from style guidance for specific industrial aesthetic */
+        }
+        
+        /* Brutalist Input Reset */
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            box-shadow: none;
+            border-color: #1A1A1A !important;
+        }
+    </style>
+</head>
+<body class="font-body-md text-body-md text-on-surface antialiased min-h-screen flex flex-col pb-20">
+<!-- TopAppBar -->
+<header class="docked full-width top-0 border-b border-outline bg-surface dark:bg-inverse-surface flat no shadows flex justify-between items-center w-full px-margin-mobile h-target-min z-40 sticky">
+<div class="flex items-center gap-sm text-primary dark:text-inverse-primary font-bold">
+<span class="material-symbols-outlined font-headline-md text-headline-md font-bold text-primary dark:text-inverse-primary" data-icon="precision_manufacturing" style="font-variation-settings: 'FILL' 0;">precision_manufacturing</span>
+<span class="font-headline-md text-headline-md font-bold text-primary dark:text-inverse-primary">КАССА</span>
+</div>
+<div class="flex items-center">
+<button class="font-label-caps text-label-caps text-on-surface-variant dark:text-on-secondary-fixed-variant hover:bg-surface-container-high dark:hover:bg-tertiary-container h-target-min px-sm flex items-center transition-colors">
+                LOGOUT
+            </button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col p-margin-mobile gap-lg w-full max-w-2xl mx-auto">
+<!-- Segmented Control -->
+<div class="flex w-full border border-outline bg-surface-container-lowest">
+<button class="flex-1 py-sm font-label-caps text-label-caps font-bold border-b-2 border-primary-container text-primary-container bg-surface-container-low transition-colors">
+                РАСХОД
+            </button>
+<button class="flex-1 py-sm font-label-caps text-label-caps border-b-2 border-transparent text-on-surface-variant hover:bg-surface-container-low transition-colors border-l border-outline">
+                ИНКАССАЦИЯ
+            </button>
+</div>
+<!-- Form Section -->
+<section class="flex flex-col gap-md">
+<!-- Date & Time (Read-only aesthetic) -->
+<div class="flex gap-md">
+<div class="relative flex-1">
+<label class="absolute -top-sm left-sm bg-surface-container-lowest px-xs font-label-muted text-label-muted text-on-surface-variant">Дата</label>
+<div class="border border-outline bg-surface-container-lowest h-target-min flex items-center px-sm font-mono-data text-mono-data text-on-surface">
+                        24.10.2023
+                    </div>
+</div>
+<div class="relative w-24">
+<label class="absolute -top-sm left-sm bg-surface-container-lowest px-xs font-label-muted text-label-muted text-on-surface-variant">Время</label>
+<div class="border border-outline bg-surface-container-lowest h-target-min flex items-center px-sm font-mono-data text-mono-data text-on-surface">
+                        14:30
+                    </div>
+</div>
+</div>
+<!-- Amount Input (Hero) -->
+<div class="relative w-full mt-sm">
+<label class="absolute -top-sm left-sm bg-surface-container-lowest px-xs font-label-muted text-label-muted text-on-surface-variant z-10">Сумма (RUB)</label>
+<input class="w-full border border-outline bg-surface-container-lowest h-16 px-md text-right font-mono-total text-mono-total text-primary-container font-bold relative z-0" type="text" value="- 5 400.00"/>
+</div>
+<!-- Description Input -->
+<div class="relative w-full">
+<label class="absolute -top-sm left-sm bg-surface-container-lowest px-xs font-label-muted text-label-muted text-on-surface-variant z-10">На что / Кому</label>
+<textarea class="w-full border border-outline bg-surface-container-lowest p-sm font-body-md text-body-md text-on-surface resize-none relative z-0" rows="2">Закупка расходников (фильтры, прокладки)</textarea>
+</div>
+<!-- Subtype Chips (Hidden in Расход state conceptually, but shown for UI completeness based on prompt) -->
+<div class="flex flex-col gap-xs mt-sm">
+<span class="font-label-muted text-label-muted text-on-surface-variant">Категория (Инкассация)</span>
+<div class="flex flex-wrap gap-sm">
+<button class="border border-outline px-sm py-xs font-label-caps text-label-caps text-on-surface hover:bg-surface-container-low transition-colors">БАНК</button>
+<button class="border border-outline px-sm py-xs font-label-caps text-label-caps text-on-surface hover:bg-surface-container-low transition-colors">АВАНС</button>
+<button class="border border-outline px-sm py-xs font-label-caps text-label-caps text-on-surface hover:bg-surface-container-low transition-colors">ЗАРПЛАТА</button>
+</div>
+</div>
+<!-- Primary Action -->
+<button class="w-full bg-primary-container text-on-primary h-target-min font-label-caps text-label-caps font-bold hover:bg-surface-tint transition-colors mt-sm flex items-center justify-center gap-sm">
+<span class="material-symbols-outlined" data-icon="save_alt" style="font-variation-settings: 'FILL' 0;">save_alt</span>
+                ВНЕСТИ
+            </button>
+</section>
+<!-- Divider -->
+<hr class="border-t border-outline my-sm"/>
+<!-- Recent Entries List -->
+<section class="flex flex-col gap-sm">
+<h3 class="font-label-caps text-label-caps font-bold text-on-surface mb-xs">ПОСЛЕДНИЕ ОПЕРАЦИИ</h3>
+<!-- List Item 1 -->
+<div class="flex flex-col border-b border-outline pb-sm">
+<div class="flex justify-between items-baseline mb-xs">
+<span class="font-mono-data text-mono-data text-on-surface-variant text-xs">24.10 12:15</span>
+<span class="font-mono-data text-mono-data text-primary-container font-bold">+ 12 500.00</span>
+</div>
+<div class="font-body-md text-body-md text-on-surface truncate">Оплата заказа #4402 (La Marzocco)</div>
+</div>
+<!-- List Item 2 -->
+<div class="flex flex-col border-b border-outline pb-sm">
+<div class="flex justify-between items-baseline mb-xs">
+<span class="font-mono-data text-mono-data text-on-surface-variant text-xs">24.10 10:05</span>
+<span class="font-mono-data text-mono-data text-error font-bold">- 1 200.00</span>
+</div>
+<div class="font-body-md text-body-md text-on-surface truncate">Обед бригады</div>
+</div>
+<!-- List Item 3 -->
+<div class="flex flex-col border-b border-outline pb-sm">
+<div class="flex justify-between items-baseline mb-xs">
+<span class="font-mono-data text-mono-data text-on-surface-variant text-xs">23.10 18:30</span>
+<span class="font-mono-data text-mono-data text-error font-bold">- 45 000.00</span>
+</div>
+<div class="font-body-md text-body-md text-on-surface truncate">Инкассация (Банк)</div>
+</div>
+<button class="w-full bg-surface-container-lowest border border-on-surface text-on-surface h-target-min font-label-caps text-label-caps hover:bg-surface-container-low transition-colors mt-xs">
+                ВСЯ ИСТОРИЯ
+            </button>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center bg-surface dark:bg-inverse-surface h-target-min border-t border-outline flat no shadows md:hidden">
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant py-2 flex-1 hover:bg-surface-container-low dark:hover:bg-tertiary-container h-full transition-colors">
+<span class="material-symbols-outlined" data-icon="assignment" style="font-variation-settings: 'FILL' 0;">assignment</span>
+<span class="font-label-caps text-label-caps mt-1">Заказы</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-secondary-fixed-variant py-2 flex-1 hover:bg-surface-container-low dark:hover:bg-tertiary-container h-full transition-colors">
+<span class="material-symbols-outlined" data-icon="add_box" style="font-variation-settings: 'FILL' 0;">add_box</span>
+<span class="font-label-caps text-label-caps mt-1">Новый</span>
+</button>
+<button class="flex flex-col items-center justify-center text-primary dark:text-inverse-primary border-t-2 border-primary py-2 flex-1 hover:bg-surface-container-low dark:hover:bg-tertiary-container h-full transition-colors opacity-100 scale-100 bg-surface-container-high/20">
+<span class="material-symbols-outlined font-bold" data-icon="payments" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span class="font-label-caps text-label-caps mt-1 font-bold">Касса</span>
+</button>
+</nav>
+</body></html>

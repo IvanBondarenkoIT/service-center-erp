@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.reasons') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('nav.reasons') }}</h1>
+</div>
+<form method="post" action="/dict/reasons" class="card grid-2">
+  <div><label>{{ t('dict.new_reason') }}</label><input name="name" required /></div>
+  <div class="align-end"><button class="btn" type="submit">{{ t('dict.add') }}</button></div>
+</form>
+<div class="order-list">
+  {% for r in reasons %}
+  <div class="sheet-row">
+    <span class="order-sn">{{ '%02d'|format(loop.index) }}</span>
+    <span class="order-model">{{ r.name }}</span>
+  </div>
+  {% else %}
+  <p class="muted order-empty">{{ t('dict.empty') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

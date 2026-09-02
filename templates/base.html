@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="{{ locale }}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}{{ t('app.name') }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Georgian:wght@400;600&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body class="app-body{% if user %} has-user{% if user.role.value != 'accountant' %} has-mobile-nav{% endif %}{% if user.role.value == 'admin' %} is-admin{% endif %}{% endif %}">
+  {% if user %}
+  {% set role = user.role.value %}
+  {% set path = request.url.path %}
+  {% set is_admin = role == 'admin' %}
+  {% set is_accountant = role == 'accountant' %}
+  {% set on_orders = path == '/' or (path.startswith('/orders') and path != '/orders/new') %}
+  {% set on_new = path == '/orders/new' %}
+  {% set on_cash = path.startswith('/cash') %}
+  {% set on_more = path == '/more' or path.startswith('/dict') or path.startswith('/reports') %}
+
+  {% if is_admin %}
+  <aside class="sidebar">
+    <a class="brand" href="/">{{ t('app.name') }}</a>
+    <nav class="sidebar-nav">
+      <a href="/" class="{% if on_orders %}active{% endif %}">{{ t('nav.orders') }}</a>
+      <a href="/orders/new" class="{% if on_new %}active{% endif %}">{{ t('nav.new_order') }}</a>
+      <a href="/cash" class="{% if on_cash %}active{% endif %}">{{ t('nav.cash') }}</a>
+      <a href="/cash/entries">{{ t('cash.enter') }}</a>
+      <a href="/reports" class="{% if path.startswith('/reports') %}active{% endif %}">{{ t('nav.reports') }}</a>
+      <a href="/dict/clients" class="{% if path.startswith('/dict/clients') %}active{% endif %}">{{ t('nav.clients') }}</a>
+      <a href="/dict/machines" class="{% if path.startswith('/dict/machines') %}active{% endif %}">{{ t('nav.machines') }}</a>
+      <a href="/dict/reasons" class="{% if path.startswith('/dict/reasons') %}active{% endif %}">{{ t('nav.reasons') }}</a>
+      <a href="/dict/erp-catalog" class="{% if path.startswith('/dict/erp') %}active{% endif %}">{{ t('nav.erp_catalog') }}</a>
+    </nav>
+  </aside>
+  {% endif %}
+
+  <div class="app-frame">
+    <header class="topbar">
+      {% if not is_admin %}
+      <a class="brand" href="{% if is_accountant %}/cash{% else %}/{% endif %}">{{ t('app.name') }}</a>
+      {% else %}
+      <span class="brand brand-mobile">{{ t('app.name') }}</span>
+      {% endif %}
+      {% if not is_accountant and not is_admin %}
+      <nav class="top-nav">
+        <a href="/" class="{% if on_orders %}active{% endif %}">{{ t('nav.orders') }}</a>
+        <a href="/orders/new" class="{% if on_new %}active{% endif %}">{{ t('nav.new_order') }}</a>
+        <a href="/cash" class="{% if on_cash %}active{% endif %}">{{ t('nav.cash') }}</a>
+      </nav>
+      {% endif %}
+      <div class="user-meta">
+        {% include "partials/locale_switch.html" with context %}
+        <span class="user-label">{{ user.full_name or user.login }} · {{ t('role.' + role) }}</span>
+        <form action="/logout" method="post">
+          <button class="btn btn-ghost" type="submit">{{ t('auth.logout') }}</button>
+        </form>
+      </div>
+    </header>
+    <main class="wrap">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% if not is_accountant %}
+  <nav class="bottom-nav">
+    <a href="/" class="{% if on_orders %}active{% endif %}">
+      <span class="material-symbols-outlined">assignment</span>
+      <span>{{ t('nav.orders') }}</span>
+    </a>
+    <a href="/orders/new" class="{% if on_new %}active{% endif %}">
+      <span class="material-symbols-outlined">add_box</span>
+      <span>{{ t('nav.new_short') }}</span>
+    </a>
+    <a href="/cash" class="{% if on_cash %}active{% endif %}">
+      <span class="material-symbols-outlined">payments</span>
+      <span>{{ t('nav.cash') }}</span>
+    </a>
+    {% if is_admin %}
+    <a href="/more" class="{% if on_more %}active{% endif %}">
+      <span class="material-symbols-outlined">menu</span>
+      <span>{{ t('nav.more') }}</span>
+    </a>
+    {% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <main>
+    {% block guest %}{% endblock %}
+  </main>
+  {% endif %}
+</body>
+</html>
