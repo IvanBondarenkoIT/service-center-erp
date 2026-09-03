@@ -13,7 +13,7 @@ copy .env.example .env
 docker compose up --build
 ```
 
-Открыть: http://localhost:8035
+Открыть: http://localhost:8080
 
 ### Вариант B — без Docker (SQLite)
 
@@ -29,7 +29,7 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env
 # поправьте DATABASE_URL на sqlite как выше
-uvicorn app.main:app --reload --port 8035
+uvicorn app.main:app --reload --port 8080
 ```
 
 ### Без Docker (приложение локально, БД Postgres в compose)
@@ -41,7 +41,7 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env
 # DATABASE_URL уже на localhost:5433
-uvicorn app.main:app --reload --port 8035
+uvicorn app.main:app --reload --port 8080
 ```
 
 ### Пользователи по умолчанию
@@ -113,7 +113,7 @@ python scripts/sync_erp_catalog.py --mode full
 1. GitHub → Railway project, builder Dockerfile.
 2. PostgreSQL plugin (`DATABASE_URL`).
 3. Variables: `SECRET_KEY`, `SEED_*` включая accountant (см. [`railway.env.example`](railway.env.example)).
-4. Cron Schedule **пустой**. Не задавайте `PORT` в Variables. Uvicorn должен слушать `$PORT` (часто 8080), не хардкод 8035.
+4. Cron Schedule **пустой**. Variables: `PORT=8080`. Uvicorn слушает `$PORT` (везде 8080).
 5. Smoke: `GET /health`.
 
 `PROXY_API_*` на демо можно не задавать.
@@ -147,7 +147,7 @@ alembic/       # миграции
 
 | Проект | Порт |
 |--------|------|
-| Service Center ERP | **8035** |
+| Service Center ERP | **8080** |
 | Promocode Checker | 8020 |
 | Firebird proxy | 8010 |
 
@@ -155,10 +155,10 @@ alembic/       # миграции
 
 Сервер может отвечать правильно, а браузер показывать старое PWA с **service worker**, зарегистрированным на том же origin (хост + порт).
 
-1. Откройте ERP: http://127.0.0.1:8035/login (не 8020).
+1. Откройте ERP: http://127.0.0.1:8080/login (не 8020).
 2. Если на **8020** всё ещё виден Promocode Checker — очистите старый origin:
    - F12 → **Application** → **Service Workers** → Unregister для `127.0.0.1:8020`
    - **Storage** → **Clear site data**
    - `Ctrl+Shift+R`
-3. Проверка: http://127.0.0.1:8035/health должен вернуть `"app": "Service Center ERP"`.
+3. Проверка: http://127.0.0.1:8080/health должен вернуть `"app": "Service Center ERP"`.
 4. InPrivate/Incognito — быстрый способ убедиться, что это кэш браузера, а не сервер.

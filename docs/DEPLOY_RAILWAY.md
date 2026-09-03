@@ -11,7 +11,7 @@
 - [ ] **Root Directory** пустой (корень репо, не `apps/service-center-erp`)
 - [ ] В Settings сервиса **Cron Schedule пустой** (long-running web, не job)
 - [ ] **PostgreSQL** в том же проекте и **привязан к web-сервису** (иначе будет `localhost:5433`)
-- [ ] Variables из [`railway.env.example`](../railway.env.example): `SECRET_KEY`, `SEED_*` (не `admin123` в проде)
+- [ ] Variables из [`railway.env.example`](../railway.env.example): `PORT=8080`, `SECRET_KEY`, `SEED_*` (не `admin123` в проде)
 - [ ] `PROXY_API_*` опционально: без них каталог ERP пустой, заказы работают
 - [ ] `healthcheckPath` = `/health` (уже в `railway.toml`)
 - [ ] Smoke: `GET https://<host>/health` → `{"status":"ok"}`; логин admin / mechanic / accountant
@@ -22,6 +22,7 @@
 ## Переменные (обязательные)
 
 ```
+PORT=8080
 SECRET_KEY=
 SEED_ADMIN_PASSWORD=
 SEED_MECHANIC_PASSWORD=
@@ -42,13 +43,13 @@ SEED_ACCOUNTANT_PASSWORD=
 
 ## Порт (Railway)
 
-Публичный URL ходит на **`$PORT`**, который задаёт Railway (часто **8080**, не всегда). Локально приложение слушает **8035**.
+Везде **8080**: локально, Docker, Railway. Start command всё равно `--port $PORT`; в Variables явно `PORT=8080`, чтобы прокси и uvicorn совпали.
 
-В логах должно быть `Uvicorn running on http://0.0.0.0:<тот же PORT>`. Если видите `8035`, а снаружи «Application failed to respond» — прокси стучится в другой порт.
+В логах: `Uvicorn running on http://0.0.0.0:8080`.
 
-- **Не** добавляйте `PORT=8035` (и вообще `PORT`) в Variables сервиса — Railway сам подставляет свой.
-- Settings → **Custom Start Command** либо пустой (тогда Dockerfile: `--port ${PORT}`), либо `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Не хардкодьте `8035`.
-- Settings → **Networking** → публичный домен → **Target Port** пустой или тот же, что в логах uvicorn (часто 8080). Не 8035.
+- Variables: `PORT=8080` (см. [`railway.env.example`](../railway.env.example)).
+- Settings → **Custom Start Command** либо пустой (Dockerfile: `--port ${PORT:-8080}`), либо `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
+- Settings → **Networking** → публичный домен → **Target Port = 8080** (или пусто, если Railway возьмёт `PORT`).
 
 ## Команда запуска
 
@@ -62,7 +63,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 
 **`Could not parse SQLAlchemy URL from string ''`** — переменная `DATABASE_URL` есть, но пустая. Обычно `${{Postgres.DATABASE_PRIVATE_URL}}` не существует. Откройте Postgres → Variables и поставьте `${{Postgres.DATABASE_URL}}`.
 
-**`Application failed to respond` + uvicorn на `:8035`** — приложение слушает локальный порт, Railway проксирует `$PORT` (часто 8080). Уберите `PORT` из Variables, Start Command с `$PORT`, задеплойте коммит где Dockerfile использует `${PORT}`.
+**`Application failed to respond`** — прокси и uvicorn на разных портах. Variables: `PORT=8080`; Networking → Target Port = 8080; в логах должно быть `:8080`.
 
 **`connection to server at "localhost" … port 5433` / `Connection refused`** — у web-сервиса нет URL облачной БД. Postgres не добавлен или не linked. Не вставляйте строку из `.env` с `localhost:5433`.
 
@@ -71,7 +72,7 @@ uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```powershell
 $env:PYTHONPATH="."
 .\.venv\Scripts\python.exe -m pytest tests -q
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8035
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --port 8080
 ```
 
-`GET http://127.0.0.1:8035/health` → `"app": "Service Center ERP"`.
+`GET http://127.0.0.1:8080/health` → `"app": "Service Center ERP"`.

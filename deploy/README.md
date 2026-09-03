@@ -13,7 +13,7 @@ cp .env.example .env
 docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
 ```
 
-App listens on host port **8035**. Put nginx/Caddy in front if needed (TLS, basic auth for extra safety).
+App listens on host port **8080**. Put nginx/Caddy in front if needed (TLS, basic auth for extra safety).
 
 ## Backup
 

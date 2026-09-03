@@ -14,9 +14,9 @@ def test_dockerfile_copies_runtime_assets() -> None:
     assert "COPY app ./app" in text
     assert "COPY templates ./templates" in text
     assert "COPY static ./static" in text
-    assert "${PORT:-8035}" in text
+    assert "${PORT:-8080}" in text
+    assert "EXPOSE 8080" in text
     assert '"--port", "8035"' not in text
-    assert not any(line.strip().startswith("EXPOSE") for line in text.splitlines())
     assert (ROOT / "app" / "i18n" / "ru.json").is_file()
     assert (ROOT / "app" / "i18n" / "en.json").is_file()
     assert (ROOT / "app" / "i18n" / "ka.json").is_file()

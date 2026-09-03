@@ -19,6 +19,6 @@ COPY alembic ./alembic
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-# Do not EXPOSE a fixed local port: Railway may route the public domain there
-# while uvicorn listens on $PORT (often 8080).
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8035}"]
+EXPOSE 8080
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

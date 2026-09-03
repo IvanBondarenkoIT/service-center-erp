@@ -2,9 +2,11 @@
   app:
     build: .
     ports:
-      - "8035:8035"
+      - "8080:8080"
     env_file:
       - .env
+    environment:
+      PORT: "8080"
     restart: unless-stopped
     depends_on:
       - db

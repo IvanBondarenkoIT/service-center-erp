@@ -18,10 +18,11 @@
   app:
     build: .
     ports:
-      - "8035:8035"
+      - "8080:8080"
     env_file:
       - .env
     environment:
+      PORT: "8080"
       DATABASE_URL: postgresql+psycopg2://scerp:scerp@db:5432/service_center_erp
     depends_on:
       db:
