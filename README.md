@@ -113,7 +113,7 @@ python scripts/sync_erp_catalog.py --mode full
 1. GitHub → Railway project, builder Dockerfile.
 2. PostgreSQL plugin (`DATABASE_URL`).
 3. Variables: `SECRET_KEY`, `SEED_*` включая accountant (см. [`railway.env.example`](railway.env.example)).
-4. Cron Schedule **пустой**. `railway.toml` поднимает uvicorn на `$PORT`.
+4. Cron Schedule **пустой**. Не задавайте `PORT` в Variables. Uvicorn должен слушать `$PORT` (часто 8080), не хардкод 8035.
 5. Smoke: `GET /health`.
 
 `PROXY_API_*` на демо можно не задавать.

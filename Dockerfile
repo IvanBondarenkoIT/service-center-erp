@@ -21,4 +21,5 @@ ENV PYTHONPATH=/app
 
 EXPOSE 8035
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8035"]
+# Railway sets PORT at runtime (often 8080). Do not ENV PORT here — it can pin 8035.
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8035}"]
