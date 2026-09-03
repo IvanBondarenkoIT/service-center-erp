@@ -19,7 +19,6 @@ COPY alembic ./alembic
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-EXPOSE 8035
-
-# Railway sets PORT at runtime (often 8080). Do not ENV PORT here — it can pin 8035.
+# Do not EXPOSE a fixed local port: Railway may route the public domain there
+# while uvicorn listens on $PORT (often 8080).
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8035}"]

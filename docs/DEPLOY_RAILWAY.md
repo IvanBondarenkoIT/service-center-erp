@@ -48,7 +48,7 @@ SEED_ACCOUNTANT_PASSWORD=
 
 - **Не** добавляйте `PORT=8035` (и вообще `PORT`) в Variables сервиса — Railway сам подставляет свой.
 - Settings → **Custom Start Command** либо пустой (тогда Dockerfile: `--port ${PORT}`), либо `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Не хардкодьте `8035`.
-- Networking / Target Port не ставьте вручную на 8035.
+- Settings → **Networking** → публичный домен → **Target Port** пустой или тот же, что в логах uvicorn (часто 8080). Не 8035.
 
 ## Команда запуска
 
