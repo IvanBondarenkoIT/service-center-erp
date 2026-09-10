@@ -22,7 +22,7 @@ from app.models import User, ServiceCenter
 
 db = SessionLocal()
 admin = db.scalar(select(User).where(User.login == "admin"))
-mech = db.scalar(select(User).where(User.login == "mechanic_tbilisi"))
+mech = db.scalar(select(User).where(User.login == "mechanic_tbilisi1"))
 center = db.scalar(select(ServiceCenter).where(ServiceCenter.code == "tbilisi"))
 db.close()
 
@@ -69,7 +69,7 @@ print("mech_sees_foreign", "SN-TEST-002" in r.text)
 s3 = requests.Session()
 r = s3.post(
     "http://127.0.0.1:8080/login",
-    data={"login": "mechanic_tbilisi", "password": "mechanic123"},
+    data={"login": "mechanic_tbilisi1", "password": "mechanic123"},
     allow_redirects=True,
 )
 r = s3.get("http://127.0.0.1:8080/")

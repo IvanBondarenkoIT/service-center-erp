@@ -16,6 +16,14 @@ _RAILWAY_MISSING_DB = (
     "then redeploy. Do not copy a local localhost:5433 URL into Railway variables."
 )
 
+DEFAULT_SEED_USERS = (
+    "admin:admin::Администратор|"
+    "accountant:accountant::Бухгалтер|"
+    "mechanic_batumi:mechanic:batumi:Механик Батуми|"
+    "mechanic_tbilisi1:mechanic:tbilisi:Механик Тбилиси 1|"
+    "mechanic_tbilisi2:mechanic:tbilisi2:Механик Тбилиси 2"
+)
+
 
 def normalize_database_url(url: str) -> str:
     """Railway/Heroku give postgres://; SQLAlchemy needs postgresql+psycopg2://."""
@@ -119,6 +127,7 @@ class Settings(BaseSettings):
     seed_admin_password: str = "admin123"
     seed_mechanic_password: str = "mechanic123"
     seed_accountant_password: str = "accountant123"
+    seed_users: str = DEFAULT_SEED_USERS
 
     # Placeholder serial prefix for Excel rows without machine serial
     import_placeholder_serial_prefix: str = "NEED-SERIAL-"

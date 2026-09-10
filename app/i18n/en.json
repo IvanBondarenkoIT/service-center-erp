@@ -124,7 +124,9 @@
     "part_code": "Part code / SN",
     "status": "Status",
     "currency": "GEL",
-    "sn_missing": "Serial number is required"
+    "sn_missing": "Serial number is required",
+    "pay": "Pay",
+    "pay_method": "Payment method"
   },
   "reports": {
     "title": "Summary reports",

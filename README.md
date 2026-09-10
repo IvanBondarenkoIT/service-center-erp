@@ -50,11 +50,11 @@ uvicorn app.main:app --reload --port 8080
 |-------|--------|------|
 | `admin` | `admin123` | все заказы + отчёты |
 | `mechanic_batumi` | `mechanic123` | только свои заказы, СЦ Батуми |
-| `mechanic_tbilisi` | `mechanic123` | только свои, Тбилиси |
+| `mechanic_tbilisi1` | `mechanic123` | только свои, Тбилиси 1 |
 | `mechanic_tbilisi2` | `mechanic123` | только свои, Тбилиси 2 |
 | `accountant` | `accountant123` | касса: просмотр и печать, без заказов |
 
-Пароли задаются через `SEED_ADMIN_PASSWORD` / `SEED_MECHANIC_PASSWORD` / `SEED_ACCOUNTANT_PASSWORD`. В проде не оставлять значения из `.env.example`.
+Пароли: `SEED_ADMIN_PASSWORD` / `SEED_MECHANIC_PASSWORD` / `SEED_ACCOUNTANT_PASSWORD`, либо свой на логин `SEED_PASSWORD_MECHANIC_BATUMI`. Состав пользователей — `SEED_USERS` (без правки кода). В проде не оставлять значения из `.env.example`.
 
 ## Возможности
 

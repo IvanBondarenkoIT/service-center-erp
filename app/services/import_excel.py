@@ -113,6 +113,8 @@ def import_excel(
     *,
     default_center_code: str = "tbilisi",
     assignee_login: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
 ) -> dict[str, int]:
     settings = get_settings()
     wb = load_workbook(path, data_only=True)
@@ -166,6 +168,12 @@ def import_excel(
                 stats["skipped"] += 1
                 continue
             if not order_date:
+                stats["skipped"] += 1
+                continue
+            if date_from and order_date < date_from:
+                stats["skipped"] += 1
+                continue
+            if date_to and order_date > date_to:
                 stats["skipped"] += 1
                 continue
 
@@ -244,6 +252,7 @@ def import_excel(
                 client_id=client.id if client else None,
                 comment=comment,
                 status=OrderStatus.issued,
+                paid_at=datetime(order_date.year, order_date.month, order_date.day),
             )
             order.lines.append(
                 OrderLine(

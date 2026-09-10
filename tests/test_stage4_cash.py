@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
 
@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 from sqlalchemy import func, select
 
 from app.database import SessionLocal
-from app.models import CashEntry, CashEntryKind, CashOpening, ServiceCenter
+from app.models import CashEntry, CashEntryKind, CashOpening, OrderStatus, PaymentType, ServiceCenter, ServiceOrder
 from tests.helpers import login, settings, user_ids
 
 PERIOD_FROM = "2020-06-01"
@@ -51,8 +51,32 @@ def _order_payload(login_name: str, serial: str, payment_type: str, work: str, p
         "payment_type": payment_type,
         "amount_work": work,
         "amount_parts": parts,
-        "status": "issued",
+        "status": "in_progress",
     }
+
+
+def _order_id(location: str) -> int:
+    return int(location.rstrip("/").rsplit("/", 1)[-1])
+
+
+def _pay(client, order_id: int, payment_type: str = "Cash"):
+    return client.post(
+        f"/orders/{order_id}/pay",
+        data={"payment_type": payment_type},
+        follow_redirects=False,
+    )
+
+
+def _set_paid_at(order_id: int, day: str) -> None:
+    db = SessionLocal()
+    try:
+        order = db.get(ServiceOrder, order_id)
+        assert order is not None
+        d = date.fromisoformat(day)
+        order.paid_at = datetime(d.year, d.month, d.day)
+        db.commit()
+    finally:
+        db.close()
 
 
 def _set_opening(center_id: int, amount: str, as_of: str = PERIOD_FROM) -> None:
@@ -74,24 +98,46 @@ def test_cash_formula_excludes_card_from_till(client) -> None:
     batumi = _center_id("batumi")
     _set_opening(batumi, "100.00")
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    cash_serial = _serial()
+    card_serial = _serial()
+    warranty_serial = _serial()
     cash_order = client.post(
         "/orders/save",
-        data=_order_payload("mechanic_batumi", _serial(), "Cash", "40.00", "10.00"),
+        data=_order_payload("mechanic_batumi", cash_serial, "Cash", "40.00", "10.00"),
         follow_redirects=False,
     )
     assert cash_order.status_code == 303
     card_order = client.post(
         "/orders/save",
-        data=_order_payload("mechanic_batumi", _serial(), "Card", "30.00", "0"),
+        data=_order_payload("mechanic_batumi", card_serial, "Card", "30.00", "0"),
         follow_redirects=False,
     )
     assert card_order.status_code == 303
     warranty = client.post(
         "/orders/save",
-        data=_order_payload("mechanic_batumi", _serial(), "garanty", "99.00", "0"),
+        data=_order_payload("mechanic_batumi", warranty_serial, "garanty", "99.00", "0"),
         follow_redirects=False,
     )
     assert warranty.status_code == 303
+    cash_id = _order_id(cash_order.headers["location"])
+    card_id = _order_id(card_order.headers["location"])
+
+    client.cookies.clear()
+    login(client, "admin", settings.seed_admin_password)
+    unpaid = client.get(
+        "/cash",
+        params={"date_from": PERIOD_FROM, "date_to": PERIOD_TO, "center_id": batumi},
+    )
+    assert unpaid.status_code == 200
+    assert cash_serial not in unpaid.text
+    assert card_serial not in unpaid.text
+
+    client.cookies.clear()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    assert _pay(client, cash_id, "Cash").status_code == 303
+    assert _pay(client, card_id, "Card").status_code == 303
+    _set_paid_at(cash_id, DAY)
+    _set_paid_at(card_id, DAY)
 
     exp = client.post(
         "/cash/entries",
@@ -248,3 +294,88 @@ def test_cash_xlsx_has_period(client) -> None:
     header = str(wb.active["A1"].value)
     assert PERIOD_FROM in header
     assert PERIOD_TO in header
+
+
+def test_pay_cash_locks_mechanic_and_rejects_repeat(client) -> None:
+    serial = _serial()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    saved = client.post(
+        "/orders/save",
+        data=_order_payload("mechanic_batumi", serial, "Cash", "15.00", "0"),
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    oid = _order_id(saved.headers["location"])
+    form = client.get(f"/orders/{oid}")
+    assert form.status_code == 200
+    assert "btn-pay" in form.text
+    assert "Оплатить" in form.text
+    assert _pay(client, oid, "Cash").status_code == 303
+
+    db = SessionLocal()
+    try:
+        from sqlalchemy.orm import joinedload
+
+        order = db.scalar(
+            select(ServiceOrder)
+            .options(joinedload(ServiceOrder.lines))
+            .where(ServiceOrder.id == oid)
+        )
+        assert order is not None
+        assert order.status == OrderStatus.issued
+        assert order.paid_at is not None
+        assert order.lines[0].payment_type == PaymentType.cash
+    finally:
+        db.close()
+
+    assert _pay(client, oid, "Card").status_code == 400
+    locked = client.get(f"/orders/{oid}")
+    assert locked.status_code == 200
+    assert "is-locked" in locked.text
+    assert "btn-pay" not in locked.text
+    blocked = client.post(
+        "/orders/save",
+        data=_order_payload("mechanic_batumi", serial, "Cash", "15.00", "0")
+        | {"order_id": str(oid)},
+        follow_redirects=False,
+    )
+    assert blocked.status_code == 403
+
+
+def test_pay_card_is_terminal_not_till(client) -> None:
+    from app.services.cash_book import build_cash_report
+
+    serial = _serial()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    saved = client.post(
+        "/orders/save",
+        data=_order_payload("mechanic_batumi", serial, "Cash", "18.50", "0"),
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    oid = _order_id(saved.headers["location"])
+    assert _pay(client, oid, "Card").status_code == 303
+    _set_paid_at(oid, DAY)
+    batumi = _center_id("batumi")
+    db = SessionLocal()
+    try:
+        report = build_cash_report(
+            db,
+            date.fromisoformat(PERIOD_FROM),
+            date.fromisoformat(PERIOD_TO),
+            batumi,
+        )
+        rows = [row for row in report.income_rows if row.note == serial]
+        assert len(rows) == 1
+        assert rows[0].cash == Decimal("0.00")
+        assert rows[0].card == Decimal("18.50")
+    finally:
+        db.close()
+    login(client, "admin", settings.seed_admin_password)
+    page = client.get(
+        "/cash",
+        params={"date_from": PERIOD_FROM, "date_to": PERIOD_TO, "center_id": batumi},
+    )
+    assert page.status_code == 200
+    assert serial in page.text
+

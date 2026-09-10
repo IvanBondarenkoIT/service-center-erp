@@ -696,6 +696,48 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   z-index: 40;
 }
 
+.pay-card {
+  margin-top: 12px;
+}
+
+.pay-card .chip-row {
+  margin: 8px 0 16px;
+}
+
+.btn-pay {
+  display: block;
+  width: 100%;
+  min-height: 56px;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.btn-pay:hover {
+  filter: brightness(1.08);
+  text-decoration: none;
+}
+
+.status-issued {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.order-form.is-locked input,
+.order-form.is-locked textarea,
+.order-form.is-locked select,
+.order-form.is-locked button.chip {
+  pointer-events: none;
+  background: var(--bg);
+}
+
 .history-box {
   border: 1px solid var(--line);
   background: var(--bg);

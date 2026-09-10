@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.database import SessionLocal
-from app.models import OrderStatus, ServiceOrder
+from app.models import OrderStatus, PaymentType, ServiceOrder
 from tests.helpers import login, settings, user_ids
 
 
@@ -120,8 +120,7 @@ def test_issued_status_on_card(client) -> None:
     serial = _serial()
     r = _save(client, "mechanic_batumi", settings.seed_mechanic_password, serial)
     oid = _order_id(r.headers["location"])
-    client.cookies.clear()
-    r2 = _save(
+    fake_issued = _save(
         client,
         "mechanic_batumi",
         settings.seed_mechanic_password,
@@ -130,10 +129,22 @@ def test_issued_status_on_card(client) -> None:
         status="issued",
         phone=_phone(),
     )
-    assert r2.status_code == 303
+    assert fake_issued.status_code == 303
+    still_open = _load_order(oid)
+    assert still_open is not None
+    assert still_open.status == OrderStatus.in_progress
+
+    paid = client.post(
+        f"/orders/{oid}/pay",
+        data={"payment_type": "Card"},
+        follow_redirects=False,
+    )
+    assert paid.status_code == 303
     order = _load_order(oid)
     assert order is not None
     assert order.status == OrderStatus.issued
+    assert order.paid_at is not None
+    assert order.lines[0].payment_type == PaymentType.card
     listing = client.get("/")
     assert 'data-status="issued"' in listing.text
     assert "Выдан" in listing.text
@@ -145,7 +156,7 @@ def test_mechanic_cannot_access_foreign_order_admin_sees_both(client) -> None:
     ra = _save(client, "mechanic_batumi", settings.seed_mechanic_password, serial_a)
     oid_a = _order_id(ra.headers["location"])
     client.cookies.clear()
-    rb = _save(client, "mechanic_tbilisi", settings.seed_mechanic_password, serial_b)
+    rb = _save(client, "mechanic_tbilisi1", settings.seed_mechanic_password, serial_b)
     assert rb.status_code == 303
 
     listing_b = client.get("/")
@@ -156,7 +167,7 @@ def test_mechanic_cannot_access_foreign_order_admin_sees_both(client) -> None:
     assert foreign.status_code == 403
     steal = client.post(
         "/orders/save",
-        data=_payload("mechanic_tbilisi", serial_a, order_id=oid_a),
+        data=_payload("mechanic_tbilisi1", serial_a, order_id=oid_a),
         follow_redirects=False,
     )
     assert steal.status_code == 403
@@ -216,3 +227,5 @@ def test_new_order_form_has_chips_status_gel(client) -> None:
     assert 'name="new_machine_serial"' in html
     assert "/dict/erp-suggest" in html
     assert "/dict/clients" not in html
+    assert "btn-pay" not in html
+    assert 'data-value="issued"' not in html

@@ -7,7 +7,7 @@
   <a class="btn btn-secondary" href="/">{{ t('orders.back') }}</a>
 </div>
 
-<form method="post" action="/orders/save" class="order-form stack">
+<form method="post" action="/orders/save" class="order-form stack{% if locked %} is-locked{% endif %}">
   {% if order %}<input type="hidden" name="order_id" value="{{ order.id }}" />{% endif %}
   {% if order %}<input type="hidden" name="machine_id" value="{{ order.machine_id }}" />{% endif %}
 
@@ -16,7 +16,8 @@
       <div>
         <label for="order_date">{{ t('orders.date') }}</label>
         <input id="order_date" type="date" name="order_date" required
-          value="{% if order %}{{ order.order_date.isoformat() }}{% else %}{{ today }}{% endif %}" />
+          value="{% if order %}{{ order.order_date.isoformat() }}{% else %}{{ today }}{% endif %}"
+          {% if locked %}readonly{% endif %} />
       </div>
       <div>
         <label>{{ t('orders.assignee') }}</label>
@@ -53,6 +54,10 @@
     </div>
     <div class="field-gap">
       <label>{{ t('orders.status') }}</label>
+      {% if order and order.status.value == 'issued' %}
+      <p class="status-issued">{{ t('status.issued') }}</p>
+      <input type="hidden" name="status" value="issued" />
+      {% else %}
       <div class="chip-row" data-input="status">
         {% for s in statuses %}
         <button type="button" class="chip {% if current_status == s.value %}active{% endif %}" data-value="{{ s.value }}">
@@ -61,6 +66,7 @@
         {% endfor %}
         <input type="hidden" name="status" value="{{ current_status }}" />
       </div>
+      {% endif %}
     </div>
   </section>
 
@@ -71,6 +77,7 @@
       <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono" required
         placeholder="SN"
         value="{% if order and order.machine %}{{ order.machine.serial_number }}{% endif %}"
+        {% if locked %}readonly{% endif %}
         hx-get="/orders/partials/history"
         hx-trigger="keyup changed delay:400ms"
         hx-target="#history-box"
@@ -120,7 +127,7 @@
     </div>
     <div class="field-gap">
       <label for="comment">{{ t('orders.comment') }}</label>
-      <textarea id="comment" name="comment">{% if order %}{{ order.comment }}{% endif %}</textarea>
+      <textarea id="comment" name="comment" {% if locked %}readonly{% endif %}>{% if order %}{{ order.comment }}{% endif %}</textarea>
     </div>
   </section>
 
@@ -138,14 +145,33 @@
         {% include "orders/_line_row.html" %}
       {% endif %}
     </div>
+    {% if not locked %}
     <button class="btn btn-secondary btn-block" type="button"
       hx-get="/orders/partials/line-row"
       hx-target="#lines-body"
       hx-swap="beforeend">{{ t('orders.add_line') }}</button>
+    {% endif %}
   </section>
 
+  {% if not locked %}
   <div class="form-save-bar">
     <button class="btn btn-login" type="submit">{{ t('orders.save') }}</button>
   </div>
+  {% endif %}
 </form>
+
+{% if order and order.status.value != 'issued' %}
+<form method="post" action="/orders/{{ order.id }}/pay" class="card pay-card">
+  <label>{{ t('orders.pay_method') }}</label>
+  <div class="chip-row" data-input="payment_type">
+    {% for p in pay_methods %}
+    <button type="button" class="chip {% if loop.first %}active{% endif %}" data-value="{{ p.value }}">
+      {{ t('payment_type.' + p.value) }}
+    </button>
+    {% endfor %}
+    <input type="hidden" name="payment_type" value="{{ pay_methods[0].value }}" />
+  </div>
+  <button class="btn btn-pay" type="submit">{{ t('orders.pay') }}</button>
+</form>
+{% endif %}
 {% endblock %}

@@ -91,6 +91,9 @@ def ensure_schema() -> None:
                 "NOT NULL DEFAULT 'in_progress'",
             )
 
+        if "service_orders" in tables and "paid_at" not in order_cols:
+            _try_alter(conn, "ALTER TABLE service_orders ADD COLUMN paid_at TIMESTAMP")
+
         if "cash_entries" in tables:
             conn.execute(
                 text(

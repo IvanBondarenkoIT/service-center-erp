@@ -47,6 +47,26 @@ def test_enums_and_tables() -> None:
     assert "status" in cols_orders
 
 
+def test_seed_three_mechanics() -> None:
+    db = SessionLocal()
+    try:
+        logins = {
+            u.login
+            for u in db.scalars(select(User).where(User.role == UserRole.mechanic))
+        }
+        assert logins == {
+            "mechanic_batumi",
+            "mechanic_tbilisi1",
+            "mechanic_tbilisi2",
+        }
+        tbilisi1 = db.scalar(select(User).where(User.login == "mechanic_tbilisi1"))
+        assert tbilisi1 is not None
+        assert tbilisi1.service_center is not None
+        assert tbilisi1.service_center.code == "tbilisi"
+    finally:
+        db.close()
+
+
 def test_seed_accountant() -> None:
     db = SessionLocal()
     try:

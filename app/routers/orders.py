@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -28,6 +28,13 @@ from app.services.phones import normalize_phone
 from app.templating import templates
 
 router = APIRouter(tags=["orders"])
+
+WORKFLOW_STATUSES = (
+    OrderStatus.in_progress,
+    OrderStatus.waiting_part,
+    OrderStatus.ready,
+)
+PAY_METHODS = (PaymentType.cash, PaymentType.card)
 
 
 def _scoped_orders_query(user: User):
@@ -265,10 +272,15 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             "reasons": reasons,
             "mechanics": mechanics,
             "line_types": list(LineType),
-            "payment_types": list(PaymentType),
-            "statuses": list(OrderStatus),
+            "pay_methods": list(PAY_METHODS),
+            "statuses": list(WORKFLOW_STATUSES),
             "history": history,
             "today": date.today().isoformat(),
+            "locked": bool(
+                order
+                and order.status == OrderStatus.issued
+                and user.role != UserRole.admin
+            ),
         },
     )
 
@@ -311,6 +323,8 @@ async def order_save(
     try:
         status = OrderStatus(status_raw)
     except ValueError:
+        status = OrderStatus.in_progress
+    if status == OrderStatus.issued or status not in WORKFLOW_STATUSES:
         status = OrderStatus.in_progress
     service_center_id = int(form.get("service_center_id") or 0)
     assignee_id = int(form.get("assignee_id") or user.id)
@@ -383,6 +397,10 @@ async def order_save(
             raise HTTPException(404)
         if user.role != UserRole.admin and order.assignee_id != user.id:
             raise HTTPException(403)
+        if order.status == OrderStatus.issued:
+            if user.role != UserRole.admin:
+                raise HTTPException(403)
+            status = OrderStatus.issued
         order.order_date = order_date
         order.assignee_id = assignee_id
         order.service_center_id = service_center_id
@@ -412,6 +430,49 @@ async def order_save(
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
 
+def _mark_paid(order: ServiceOrder, payment: PaymentType) -> None:
+    for line in order.lines:
+        if line.line_type == LineType.warranty:
+            line.payment_type = PaymentType.warranty
+        elif line.line_type == LineType.expense:
+            line.payment_type = PaymentType.expense
+        else:
+            line.payment_type = payment
+    order.status = OrderStatus.issued
+    order.paid_at = datetime.now(timezone.utc)
+
+
+@router.post("/orders/{order_id}/pay")
+async def order_pay(
+    order_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_staff_user),
+):
+    order = db.scalar(
+        select(ServiceOrder)
+        .options(joinedload(ServiceOrder.lines))
+        .where(ServiceOrder.id == order_id)
+    )
+    if not order:
+        raise HTTPException(404)
+    if user.role != UserRole.admin and order.assignee_id != user.id:
+        raise HTTPException(403)
+    if order.status == OrderStatus.issued:
+        raise HTTPException(400, "already_paid")
+    form = await request.form()
+    raw = str(form.get("payment_type") or "")
+    try:
+        payment = PaymentType(raw)
+    except ValueError:
+        raise HTTPException(400, "payment_required")
+    if payment not in PAY_METHODS:
+        raise HTTPException(400, "payment_required")
+    _mark_paid(order, payment)
+    db.commit()
+    return RedirectResponse(f"/orders/{order.id}", status_code=303)
+
+
 @router.get("/orders/partials/line-row", response_class=HTMLResponse)
 def line_row_partial(request: Request, user: User = Depends(get_staff_user)):
     return templates.TemplateResponse(
@@ -421,7 +482,6 @@ def line_row_partial(request: Request, user: User = Depends(get_staff_user)):
             "user": user,
             "line": None,
             "line_types": list(LineType),
-            "payment_types": list(PaymentType),
         },
     )
 

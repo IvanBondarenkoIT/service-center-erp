@@ -14,6 +14,7 @@ from app.models import (
     CashEntryKind,
     CashOpening,
     OrderLine,
+    OrderStatus,
     PaymentType,
     ServiceCenter,
     ServiceOrder,
@@ -130,6 +131,13 @@ def opening_balance(db: Session, center_ids: list[int], as_of: date) -> Decimal:
     return money(total)
 
 
+def _cash_date(order: ServiceOrder) -> date:
+    if order.paid_at is not None:
+        paid = order.paid_at
+        return paid.date() if hasattr(paid, "date") else paid
+    return order.order_date
+
+
 def build_cash_report(
     db: Session,
     date_from: date,
@@ -156,14 +164,16 @@ def build_cash_report(
                 joinedload(ServiceOrder.service_center),
             )
             .where(
-                ServiceOrder.order_date >= date_from,
-                ServiceOrder.order_date <= date_to,
+                ServiceOrder.status == OrderStatus.issued,
                 ServiceOrder.service_center_id.in_(ids),
             )
             .order_by(ServiceOrder.order_date, ServiceOrder.id)
         ).unique()
     )
     for order in orders:
+        cash_date = _cash_date(order)
+        if cash_date < date_from or cash_date > date_to:
+            continue
         cash = ZERO
         card = ZERO
         for line in order.lines:
@@ -179,7 +189,7 @@ def build_cash_report(
         report.income_rows.append(
             IncomeRow(
                 order_id=order.id,
-                order_date=order.order_date,
+                order_date=cash_date,
                 cash=money(cash),
                 card=money(card),
                 assignee=(order.assignee.full_name or order.assignee.login)

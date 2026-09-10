@@ -5,6 +5,8 @@ import argparse
 import sys
 from pathlib import Path
 
+from datetime import date
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -17,26 +19,30 @@ def main() -> None:
     parser.add_argument(
         "path",
         nargs="?",
-        default=str(
-            ROOT.parents[1]
-            / "data"
-            / "input"
-            / "Сервис центр ЕРП"
-            / "Coffee Machines Table 2025.xlsx"
-        ),
+        default=str(ROOT / "data" / "input" / "Coffee Machines Table 2025.xlsx"),
     )
     parser.add_argument("--center", default="tbilisi", help="service center code")
     parser.add_argument("--assignee", default=None, help="user login for assignee")
+    parser.add_argument("--since", default=None, help="YYYY-MM-DD inclusive")
+    parser.add_argument("--until", default=None, help="YYYY-MM-DD inclusive")
     args = parser.parse_args()
 
     path = Path(args.path)
     if not path.exists():
         raise SystemExit(f"File not found: {path}")
 
+    date_from = date.fromisoformat(args.since) if args.since else None
+    date_to = date.fromisoformat(args.until) if args.until else None
+
     db = SessionLocal()
     try:
         stats = import_excel(
-            db, path, default_center_code=args.center, assignee_login=args.assignee
+            db,
+            path,
+            default_center_code=args.center,
+            assignee_login=args.assignee,
+            date_from=date_from,
+            date_to=date_to,
         )
         print("Import OK:", stats)
     finally:

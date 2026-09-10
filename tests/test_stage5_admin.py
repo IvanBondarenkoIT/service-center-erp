@@ -45,10 +45,10 @@ def test_admin_reports_by_center_and_payment(client) -> None:
     )
     assert a.status_code == 303
     client.cookies.clear()
-    login(client, "mechanic_tbilisi", settings.seed_mechanic_password)
+    login(client, "mechanic_tbilisi1", settings.seed_mechanic_password)
     b = client.post(
         "/orders/save",
-        data=_order("mechanic_tbilisi", "Card", "222.22"),
+        data=_order("mechanic_tbilisi1", "Card", "222.22"),
         follow_redirects=False,
     )
     assert b.status_code == 303

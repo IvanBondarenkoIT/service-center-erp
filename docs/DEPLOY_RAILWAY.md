@@ -29,6 +29,8 @@ SEED_MECHANIC_PASSWORD=
 SEED_ACCOUNTANT_PASSWORD=
 ```
 
+Логины по умолчанию: `admin`, `mechanic_batumi`, `mechanic_tbilisi1`, `mechanic_tbilisi2`, `accountant`. Новый механик — переменная `SEED_USERS` (см. `railway.env.example`), без правки кода. Старый логин `mechanic_tbilisi` при старте переименовывается в `mechanic_tbilisi1`.
+
 `DATABASE_URL` должен указывать на Postgres **внутри Railway**, не на `localhost:5433`.
 
 1. New → Database → PostgreSQL (тот же проект, что и web).

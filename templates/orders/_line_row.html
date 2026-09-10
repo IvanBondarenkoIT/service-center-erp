@@ -10,32 +10,27 @@
       {% endfor %}
       <input type="hidden" name="line_type" value="{{ lt }}" />
     </div>
+    {% if not locked|default(false) %}
     <button type="button" class="icon-btn line-remove" aria-label="remove" onclick="this.closest('.line-card').remove()">
       <span class="material-symbols-outlined">delete</span>
     </button>
+    {% endif %}
   </div>
   <input type="text" name="description" placeholder="{{ t('orders.lines') }}"
-    value="{% if line %}{{ line.description }}{% endif %}" />
+    value="{% if line %}{{ line.description }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
   <input type="text" name="part_code" class="input-mono" placeholder="{{ t('orders.part_code') }}"
-    value="{% if line %}{{ line.part_code }}{% endif %}" />
-  <div class="chip-row" data-input="payment_type">
-    {% for p in payment_types %}
-    <button type="button" class="chip {% if pt == p.value %}active{% endif %}" data-value="{{ p.value }}">
-      {{ t('payment_type.' + p.value) }}
-    </button>
-    {% endfor %}
-    <input type="hidden" name="payment_type" value="{{ pt }}" />
-  </div>
+    value="{% if line %}{{ line.part_code }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
+  <input type="hidden" name="payment_type" value="{{ pt }}" />
   <div class="grid-2">
     <div>
       <label>{{ t('orders.work_amount') }}, {{ t('orders.currency') }}</label>
       <input type="number" step="0.01" name="amount_work" class="input-mono input-amount"
-        value="{% if line %}{{ line.amount_work }}{% else %}0{% endif %}" />
+        value="{% if line %}{{ line.amount_work }}{% else %}0{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
     </div>
     <div>
       <label>{{ t('orders.parts_amount') }}, {{ t('orders.currency') }}</label>
       <input type="number" step="0.01" name="amount_parts" class="input-mono input-amount"
-        value="{% if line %}{{ line.amount_parts }}{% else %}0{% endif %}" />
+        value="{% if line %}{{ line.amount_parts }}{% else %}0{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
     </div>
   </div>
 </article>
