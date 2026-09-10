@@ -547,6 +547,64 @@ a.chip.active {
   color: #fff;
 }
 
+.chip-line-work {
+  border-color: #2c4a3e;
+  color: #2c4a3e;
+}
+button.chip-line-work.active {
+  background: #2c4a3e;
+  border-color: #2c4a3e;
+  color: #f7f7f4;
+}
+
+.chip-line-part {
+  border-color: #3d5a80;
+  color: #3d5a80;
+}
+button.chip-line-part.active {
+  background: #3d5a80;
+  border-color: #3d5a80;
+  color: #f7f7f4;
+}
+
+.chip-line-diagnostic {
+  border-color: #8a5a00;
+  color: #8a5a00;
+}
+button.chip-line-diagnostic.active {
+  background: #8a5a00;
+  border-color: #8a5a00;
+  color: #fff8e8;
+}
+
+.chip-line-expense {
+  border-color: #8b1e1e;
+  color: #8b1e1e;
+}
+button.chip-line-expense.active {
+  background: #8b1e1e;
+  border-color: #8b1e1e;
+  color: #fff;
+}
+
+.chip-line-warranty {
+  border-color: #5c6b4a;
+  color: #5c6b4a;
+}
+button.chip-line-warranty.active {
+  background: #5c6b4a;
+  border-color: #5c6b4a;
+  color: #f7f7f4;
+}
+
+.line-warranty-row {
+  margin: 8px 0 0;
+}
+
+.line-amount-wrap.is-warranty input {
+  opacity: 0.55;
+}
+
 .filter-chips { margin-bottom: 1rem; }
 
 .search-field { flex: 1; min-width: 0; }
@@ -694,6 +752,11 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   border-top: 1px solid var(--line);
   padding: 12px 0;
   z-index: 40;
+}
+
+.pay-done {
+  margin: 12px 0 0;
+  font-weight: 600;
 }
 
 .pay-card {

@@ -30,9 +30,9 @@ def _order(login_name: str, payment: str, work: str) -> dict[str, str]:
         "description": "report-line",
         "part_code": "",
         "payment_type": payment,
-        "amount_work": work,
-        "amount_parts": "0",
-        "status": "issued",
+        "is_warranty": "0",
+        "amount": work,
+        "status": "in_progress",
     }
 
 

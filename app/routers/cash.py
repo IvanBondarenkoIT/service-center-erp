@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.services.cash_book import (
     build_cash_report,
+    business_today,
     cash_report_xlsx,
     existing_cash_entry,
     recent_cash_entries,
@@ -45,7 +46,7 @@ def _parse_amount(raw: str) -> Decimal:
 
 
 def _period(date_from: str, date_to: str) -> tuple[date, date]:
-    today = date.today()
+    today = business_today()
     d_from = _parse_date(date_from, today.replace(day=1))
     d_to = _parse_date(date_to, today)
     if d_from > d_to:

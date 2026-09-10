@@ -1,36 +1,53 @@
-{% set lt = line.line_type.value if line else 'work' %}
-{% set pt = line.payment_type.value if line else 'Cash' %}
-<article class="line-card">
+{% set raw_lt = line.line_type.value if line else 'work' %}
+{% set is_warranty = (line and (line.payment_type.value == 'garanty' or line.line_type.value == 'warranty')) %}
+{% set is_expense = raw_lt == 'expense' %}
+{% set lt = 'work' if raw_lt == 'warranty' else raw_lt %}
+<article class="line-card" data-line-card>
   <div class="line-card-head">
     <div class="chip-row" data-input="line_type">
       {% for typ in line_types %}
-      <button type="button" class="chip {% if lt == typ.value %}active{% endif %}" data-value="{{ typ.value }}">
+      <button type="button"
+        class="chip chip-line-{{ typ.value }} {% if lt == typ.value and not is_expense %}active{% endif %}"
+        data-value="{{ typ.value }}"
+        {% if is_expense or locked|default(false) %}disabled{% endif %}>
         {{ t('line_type.' + typ.value) }}
       </button>
       {% endfor %}
-      <input type="hidden" name="line_type" value="{{ lt }}" />
+      {% if is_expense %}
+      <button type="button" class="chip chip-line-expense active" data-value="expense" disabled>
+        {{ t('line_type.expense') }}
+      </button>
+      {% endif %}
+      <input type="hidden" name="line_type" value="{% if is_expense %}expense{% else %}{{ lt }}{% endif %}" />
     </div>
-    {% if not locked|default(false) %}
+    {% if not locked|default(false) and not is_expense %}
     <button type="button" class="icon-btn line-remove" aria-label="remove" onclick="this.closest('.line-card').remove()">
       <span class="material-symbols-outlined">delete</span>
     </button>
     {% endif %}
   </div>
+  {% if not is_expense %}
+  <div class="chip-row line-warranty-row" data-toggle="is_warranty">
+    <button type="button"
+      class="chip chip-line-warranty {% if is_warranty %}active{% endif %}"
+      data-value="1"
+      {% if locked|default(false) %}disabled{% endif %}>
+      {{ t('orders.warranty_free') }}
+    </button>
+    <input type="hidden" name="is_warranty" value="{% if is_warranty %}1{% else %}0{% endif %}" />
+  </div>
+  {% else %}
+  <input type="hidden" name="is_warranty" value="0" />
+  {% endif %}
   <input type="text" name="description" placeholder="{{ t('orders.lines') }}"
     value="{% if line %}{{ line.description }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
-  <input type="text" name="part_code" class="input-mono" placeholder="{{ t('orders.part_code') }}"
+  <input type="text" name="part_code" class="input-mono line-part-code" placeholder="{{ t('orders.part_code') }}"
     value="{% if line %}{{ line.part_code }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
-  <input type="hidden" name="payment_type" value="{{ pt }}" />
-  <div class="grid-2">
-    <div>
-      <label>{{ t('orders.work_amount') }}, {{ t('orders.currency') }}</label>
-      <input type="number" step="0.01" name="amount_work" class="input-mono input-amount"
-        value="{% if line %}{{ line.amount_work }}{% else %}0{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
-    </div>
-    <div>
-      <label>{{ t('orders.parts_amount') }}, {{ t('orders.currency') }}</label>
-      <input type="number" step="0.01" name="amount_parts" class="input-mono input-amount"
-        value="{% if line %}{{ line.amount_parts }}{% else %}0{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
-    </div>
+  <input type="hidden" name="payment_type" value="{% if is_warranty %}garanty{% elif line %}{{ line.payment_type.value }}{% else %}Cash{% endif %}" />
+  <div class="field-gap line-amount-wrap{% if is_warranty %} is-warranty{% endif %}">
+    <label>{{ t('orders.amount') }}, {{ t('orders.currency') }}</label>
+    <input type="number" step="0.01" name="amount" class="input-mono input-amount"
+      value="{% if line and not is_warranty %}{% if lt == 'part' %}{{ line.amount_parts or 0 }}{% else %}{{ (line.amount_work or 0) + (line.amount_parts or 0) }}{% endif %}{% else %}0{% endif %}"
+      {% if is_warranty or locked|default(false) %}readonly{% endif %} />
   </div>
 </article>

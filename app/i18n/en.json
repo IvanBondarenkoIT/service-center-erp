@@ -64,7 +64,7 @@
   "locale": {
     "ru": "RU",
     "en": "EN",
-    "ka": "KA"
+    "ka": "GE"
   },
   "role": {
     "admin": "admin",
@@ -121,12 +121,16 @@
     "add_line": "Add line",
     "work_amount": "Labor",
     "parts_amount": "Parts",
+    "amount": "Amount",
+    "warranty_free": "Warranty (free)",
     "part_code": "Part code / SN",
     "status": "Status",
     "currency": "GEL",
     "sn_missing": "Serial number is required",
     "pay": "Pay",
-    "pay_method": "Payment method"
+    "pay_method": "Payment method",
+    "pay_hint": "Amounts stay out of cash until you tap Pay. After payment the order becomes Issued.",
+    "paid_in_cash": "Paid. The amount is in the cash report."
   },
   "reports": {
     "title": "Summary reports",

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -25,6 +25,7 @@ from app.models import (
     UserRole,
 )
 from app.services.phones import normalize_phone
+from app.services.cash_book import BUSINESS_TZ
 from app.templating import templates
 
 router = APIRouter(tags=["orders"])
@@ -35,6 +36,7 @@ WORKFLOW_STATUSES = (
     OrderStatus.ready,
 )
 PAY_METHODS = (PaymentType.cash, PaymentType.card)
+FORM_LINE_TYPES = (LineType.work, LineType.part, LineType.diagnostic)
 
 
 def _scoped_orders_query(user: User):
@@ -127,12 +129,16 @@ def _parse_lines_from_form(
     description: list[str],
     part_code: list[str],
     payment_type: list[str],
-    amount_work: list[str],
-    amount_parts: list[str],
+    amount: list[str],
+    is_warranty: list[str],
+    amount_work: list[str] | None = None,
+    amount_parts: list[str] | None = None,
 ) -> list[OrderLine]:
     lines: list[OrderLine] = []
-    n = max(len(line_type), len(description), 1)
-    # Pad lists
+    amount_work = amount_work or []
+    amount_parts = amount_parts or []
+    n = max(len(line_type), len(description), len(amount), 1)
+
     def pad(xs: list[str], size: int) -> list[str]:
         return list(xs) + [""] * (size - len(xs))
 
@@ -140,24 +146,81 @@ def _parse_lines_from_form(
     description = pad(description, n)
     part_code = pad(part_code, n)
     payment_type = pad(payment_type, n)
+    amount = pad(amount, n)
+    is_warranty = pad(is_warranty, n)
     amount_work = pad(amount_work, n)
     amount_parts = pad(amount_parts, n)
 
     for i in range(n):
         desc = (description[i] or "").strip()
-        aw = _parse_decimal(amount_work[i])
-        ap = _parse_decimal(amount_parts[i])
         pc = (part_code[i] or "").strip()
-        if not desc and not pc and aw == 0 and ap == 0:
-            continue
         try:
             lt = LineType(line_type[i])
         except ValueError:
             lt = LineType.work
+
+        warranty_flag = str(is_warranty[i] or "").strip().lower() in {
+            "1",
+            "true",
+            "on",
+            "yes",
+            "garanty",
+            "warranty",
+        }
         try:
             pt = PaymentType(payment_type[i])
         except ValueError:
             pt = PaymentType.cash
+
+        if lt == LineType.warranty or pt == PaymentType.warranty:
+            warranty_flag = True
+            if lt == LineType.warranty:
+                lt = LineType.work
+
+        if lt == LineType.expense:
+            # Legacy rows only — keep both amount columns as submitted.
+            aw = _parse_decimal(amount_work[i] or amount[i])
+            ap = _parse_decimal(amount_parts[i])
+            if amount[i] and not amount_work[i] and not amount_parts[i]:
+                aw = _parse_decimal(amount[i])
+                ap = Decimal("0")
+            if not desc and not pc and aw == 0 and ap == 0:
+                continue
+            lines.append(
+                OrderLine(
+                    line_type=LineType.expense,
+                    description=desc,
+                    part_code=pc,
+                    payment_type=PaymentType.expense,
+                    amount_work=aw,
+                    amount_parts=ap,
+                )
+            )
+            continue
+
+        if lt not in FORM_LINE_TYPES:
+            lt = LineType.work
+
+        if amount[i] not in ("", None):
+            total = _parse_decimal(amount[i])
+        else:
+            total = _parse_decimal(amount_work[i]) + _parse_decimal(amount_parts[i])
+
+        if warranty_flag:
+            total = Decimal("0")
+            pt = PaymentType.warranty
+            aw, ap = Decimal("0"), Decimal("0")
+        elif lt == LineType.part:
+            aw, ap = Decimal("0"), total
+            if pt == PaymentType.warranty:
+                pt = PaymentType.cash
+        else:
+            aw, ap = total, Decimal("0")
+            if pt == PaymentType.warranty:
+                pt = PaymentType.cash
+
+        if not desc and not pc and aw == 0 and ap == 0 and not warranty_flag:
+            continue
         lines.append(
             OrderLine(
                 line_type=lt,
@@ -271,7 +334,7 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             "centers": centers,
             "reasons": reasons,
             "mechanics": mechanics,
-            "line_types": list(LineType),
+            "line_types": list(FORM_LINE_TYPES),
             "pay_methods": list(PAY_METHODS),
             "statuses": list(WORKFLOW_STATUSES),
             "history": history,
@@ -387,6 +450,8 @@ async def order_save(
         getlist("description"),
         getlist("part_code"),
         getlist("payment_type"),
+        getlist("amount"),
+        getlist("is_warranty"),
         getlist("amount_work"),
         getlist("amount_parts"),
     )
@@ -432,14 +497,17 @@ async def order_save(
 
 def _mark_paid(order: ServiceOrder, payment: PaymentType) -> None:
     for line in order.lines:
-        if line.line_type == LineType.warranty:
-            line.payment_type = PaymentType.warranty
-        elif line.line_type == LineType.expense:
+        if line.line_type == LineType.expense:
             line.payment_type = PaymentType.expense
+        elif (
+            line.line_type == LineType.warranty
+            or line.payment_type == PaymentType.warranty
+        ):
+            line.payment_type = PaymentType.warranty
         else:
             line.payment_type = payment
     order.status = OrderStatus.issued
-    order.paid_at = datetime.now(timezone.utc)
+    order.paid_at = datetime.now(BUSINESS_TZ)
 
 
 @router.post("/orders/{order_id}/pay")
@@ -449,11 +517,11 @@ async def order_pay(
     db: Session = Depends(get_db),
     user: User = Depends(get_staff_user),
 ):
-    order = db.scalar(
+    order = db.scalars(
         select(ServiceOrder)
         .options(joinedload(ServiceOrder.lines))
         .where(ServiceOrder.id == order_id)
-    )
+    ).unique().one_or_none()
     if not order:
         raise HTTPException(404)
     if user.role != UserRole.admin and order.assignee_id != user.id:
@@ -481,7 +549,8 @@ def line_row_partial(request: Request, user: User = Depends(get_staff_user)):
         {
             "user": user,
             "line": None,
-            "line_types": list(LineType),
+            "line_types": list(FORM_LINE_TYPES),
+            "locked": False,
         },
     )
 

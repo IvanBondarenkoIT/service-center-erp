@@ -42,8 +42,8 @@ r = s.post(
         "description": "descaling,kapuchinator clean",
         "part_code": "",
         "payment_type": "Cash",
-        "amount_work": "100",
-        "amount_parts": "0",
+        "is_warranty": "0",
+        "amount": "100",
     },
     allow_redirects=True,
 )

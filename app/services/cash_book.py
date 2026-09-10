@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from io import BytesIO
 
@@ -19,6 +19,25 @@ from app.models import (
     ServiceCenter,
     ServiceOrder,
 )
+
+BUSINESS_TZ = timezone(timedelta(hours=4))  # Georgia (no DST)
+
+
+def business_today() -> date:
+    return datetime.now(BUSINESS_TZ).date()
+
+
+def as_business_date(value: datetime | date | None) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        dt = value
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(BUSINESS_TZ).date()
+    if isinstance(value, date):
+        return value
+    return None
 
 
 def cash_entry_key(
@@ -132,10 +151,18 @@ def opening_balance(db: Session, center_ids: list[int], as_of: date) -> Decimal:
 
 
 def _cash_date(order: ServiceOrder) -> date:
-    if order.paid_at is not None:
-        paid = order.paid_at
-        return paid.date() if hasattr(paid, "date") else paid
+    paid = as_business_date(order.paid_at)
+    if paid is not None:
+        return paid
     return order.order_date
+
+
+def _in_cash_period(order: ServiceOrder, date_from: date, date_to: date) -> bool:
+    """Till day is pay time (Tbilisi); also keep the order_date so a same-day job is not dropped."""
+    paid = as_business_date(order.paid_at)
+    if paid is not None and date_from <= paid <= date_to:
+        return True
+    return date_from <= order.order_date <= date_to
 
 
 def build_cash_report(
@@ -171,9 +198,11 @@ def build_cash_report(
         ).unique()
     )
     for order in orders:
+        if not _in_cash_period(order, date_from, date_to):
+            continue
         cash_date = _cash_date(order)
         if cash_date < date_from or cash_date > date_to:
-            continue
+            cash_date = order.order_date
         cash = ZERO
         card = ZERO
         for line in order.lines:

@@ -22,6 +22,14 @@ def _phone() -> str:
 
 def _payload(login_name: str, serial: str, **extra) -> dict[str, str]:
     user_id, center_id = user_ids(login_name)
+    amount = extra.get("amount")
+    if amount is None and ("amount_work" in extra or "amount_parts" in extra):
+        # legacy dual-field callers
+        aw = Decimal(str(extra.get("amount_work", "0") or "0"))
+        ap = Decimal(str(extra.get("amount_parts", "0") or "0"))
+        amount = str(aw + ap)
+    elif amount is None:
+        amount = "35.50"
     data = {
         "order_date": date.today().isoformat(),
         "assignee_id": str(user_id),
@@ -34,8 +42,8 @@ def _payload(login_name: str, serial: str, **extra) -> dict[str, str]:
         "description": extra.get("description", "cleaning"),
         "part_code": extra.get("part_code", ""),
         "payment_type": extra.get("payment_type", "Cash"),
-        "amount_work": extra.get("amount_work", "25.50"),
-        "amount_parts": extra.get("amount_parts", "10.00"),
+        "is_warranty": extra.get("is_warranty", "0"),
+        "amount": str(amount),
         "status": extra.get("status", "in_progress"),
         "comment": extra.get("comment", ""),
     }
@@ -229,3 +237,50 @@ def test_new_order_form_has_chips_status_gel(client) -> None:
     assert "/dict/clients" not in html
     assert "btn-pay" not in html
     assert 'data-value="issued"' not in html
+    assert 'name="amount"' in html
+    assert "warranty_free" in html or "Гарантия" in html
+    assert 'data-value="expense"' not in html
+    assert "chip-line-work" in html
+
+
+def test_part_line_maps_single_amount(client) -> None:
+    serial = _serial()
+    r = _save(
+        client,
+        "mechanic_batumi",
+        settings.seed_mechanic_password,
+        serial,
+        line_type="part",
+        amount="12.50",
+        description="seal",
+        part_code="SEAL-1",
+    )
+    assert r.status_code == 303
+    order = _load_order(_order_id(r.headers["location"]))
+    assert order is not None
+    assert order.lines[0].line_type.value == "part"
+    assert order.lines[0].amount_work == Decimal("0")
+    assert order.lines[0].amount_parts == Decimal("12.50")
+    assert order.total_amount == Decimal("12.50")
+
+
+def test_warranty_flag_zeros_amount(client) -> None:
+    serial = _serial()
+    r = _save(
+        client,
+        "mechanic_batumi",
+        settings.seed_mechanic_password,
+        serial,
+        line_type="work",
+        amount="40.00",
+        is_warranty="1",
+        description="free fix",
+    )
+    assert r.status_code == 303
+    order = _load_order(_order_id(r.headers["location"]))
+    assert order is not None
+    assert order.lines[0].payment_type == PaymentType.warranty
+    assert order.lines[0].amount_work == Decimal("0")
+    assert order.lines[0].amount_parts == Decimal("0")
+    assert order.total_amount == Decimal("0")
+    assert order.lines[0].line_type.value == "work"

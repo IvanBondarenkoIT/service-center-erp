@@ -19,9 +19,35 @@ function applyErpModel(erpId, name) {
   if (erpInput) erpInput.value = erpId;
 }
 
+function syncLineWarranty(card, on) {
+  if (!card) return;
+  const wrap = card.querySelector(".line-amount-wrap");
+  const amount = card.querySelector('input[name="amount"]');
+  const pay = card.querySelector('input[name="payment_type"]');
+  if (wrap) wrap.classList.toggle("is-warranty", on);
+  if (amount) {
+    if (on) amount.value = "0";
+    amount.readOnly = on;
+  }
+  if (pay) pay.value = on ? "garanty" : "Cash";
+}
+
 document.addEventListener("click", (event) => {
   const chip = event.target.closest("button.chip");
-  if (!chip) return;
+  if (!chip || chip.disabled) return;
+
+  const toggleRow = chip.closest(".chip-row[data-toggle]");
+  if (toggleRow) {
+    const input = toggleRow.querySelector('input[type="hidden"]');
+    const on = !chip.classList.contains("active");
+    chip.classList.toggle("active", on);
+    if (input) input.value = on ? "1" : "0";
+    if (toggleRow.dataset.toggle === "is_warranty") {
+      syncLineWarranty(chip.closest("[data-line-card]"), on);
+    }
+    return;
+  }
+
   const row = chip.closest(".chip-row");
   if (!row) return;
   row.querySelectorAll("button.chip").forEach((el) => el.classList.remove("active"));

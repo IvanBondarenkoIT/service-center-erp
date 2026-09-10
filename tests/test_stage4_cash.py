@@ -37,6 +37,8 @@ def _center_id(code: str) -> int:
 
 def _order_payload(login_name: str, serial: str, payment_type: str, work: str, parts: str) -> dict:
     user_id, center_id = user_ids(login_name)
+    total = Decimal(work) + Decimal(parts)
+    is_warranty = "1" if payment_type == "garanty" else "0"
     return {
         "order_date": DAY,
         "assignee_id": str(user_id),
@@ -49,8 +51,8 @@ def _order_payload(login_name: str, serial: str, payment_type: str, work: str, p
         "description": "repair",
         "part_code": "",
         "payment_type": payment_type,
-        "amount_work": work,
-        "amount_parts": parts,
+        "is_warranty": is_warranty,
+        "amount": "0" if is_warranty == "1" else str(total),
         "status": "in_progress",
     }
 
@@ -378,4 +380,73 @@ def test_pay_card_is_terminal_not_till(client) -> None:
     )
     assert page.status_code == 200
     assert serial in page.text
+
+
+def test_pay_today_shows_in_todays_cash(client) -> None:
+    from app.services.cash_book import business_today
+
+    serial = _serial()
+    day = business_today().isoformat()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    payload = _order_payload("mechanic_batumi", serial, "Cash", "11.00", "0")
+    payload["order_date"] = day
+    saved = client.post("/orders/save", data=payload, follow_redirects=False)
+    assert saved.status_code == 303
+    oid = _order_id(saved.headers["location"])
+
+    client.cookies.clear()
+    login(client, "admin", settings.seed_admin_password)
+    unpaid = client.get(
+        "/cash",
+        params={"date_from": day, "date_to": day, "center_id": _center_id("batumi")},
+    )
+    assert unpaid.status_code == 200
+    assert serial not in unpaid.text
+
+    client.cookies.clear()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    assert _pay(client, oid, "Cash").status_code == 303
+
+    client.cookies.clear()
+    login(client, "admin", settings.seed_admin_password)
+    page = client.get(
+        "/cash",
+        params={"date_from": day, "date_to": day, "center_id": _center_id("batumi")},
+    )
+    assert page.status_code == 200
+    assert serial in page.text
+    assert "11.00" in page.text
+
+
+def test_warranty_line_not_in_cash_after_pay(client) -> None:
+    from app.services.cash_book import business_today, build_cash_report
+
+    serial = _serial()
+    day = business_today().isoformat()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    payload = _order_payload("mechanic_batumi", serial, "garanty", "0", "0")
+    payload["order_date"] = day
+    payload["description"] = "warranty seal"
+    payload["amount"] = "0"
+    payload["is_warranty"] = "1"
+    saved = client.post("/orders/save", data=payload, follow_redirects=False)
+    assert saved.status_code == 303
+    oid = _order_id(saved.headers["location"])
+    assert _pay(client, oid, "Cash").status_code == 303
+    batumi = _center_id("batumi")
+    db = SessionLocal()
+    try:
+        order = db.get(ServiceOrder, oid)
+        assert order is not None
+        assert order.status == OrderStatus.issued
+        assert order.lines[0].payment_type == PaymentType.warranty
+        report = build_cash_report(
+            db,
+            date.fromisoformat(day),
+            date.fromisoformat(day),
+            batumi,
+        )
+        assert all(row.note != serial for row in report.income_rows)
+    finally:
+        db.close()
 
