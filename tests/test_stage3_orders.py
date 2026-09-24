@@ -226,7 +226,23 @@ def test_mechanic_dicts_forbidden_erp_suggest_ok(client) -> None:
 
 def test_new_order_form_has_chips_status_gel(client) -> None:
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
-    page = client.get("/orders/new")
+    intake = client.get("/orders/intake")
+    assert intake.status_code == 200
+    assert 'name="new_machine_serial"' in intake.text
+    assert 'name="new_client_phone"' in intake.text
+    assert "btn-pay" not in intake.text
+
+    saved = client.post(
+        "/orders/intake",
+        data={
+            "new_machine_serial": _serial(),
+            "new_client_phone": _phone(),
+            "new_client_name": "Form",
+        },
+        follow_redirects=False,
+    )
+    assert saved.status_code == 303
+    page = client.get(saved.headers["location"])
     assert page.status_code == 200
     html = page.text
     assert 'name="status"' in html
@@ -235,10 +251,9 @@ def test_new_order_form_has_chips_status_gel(client) -> None:
     assert 'name="new_machine_serial"' in html
     assert "/dict/erp-suggest" in html
     assert "/dict/clients" not in html
-    assert "btn-pay" not in html
     assert 'data-value="issued"' not in html
     assert 'name="amount"' in html
-    assert "warranty_free" in html or "Гарантия" in html
+    assert "Гарантия" in html
     assert 'data-value="expense"' not in html
     assert "chip-line-work" in html
 

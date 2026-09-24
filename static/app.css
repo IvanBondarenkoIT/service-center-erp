@@ -807,6 +807,65 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   padding: 8px 12px;
 }
 
+.flash-error {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  background: #fff;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+}
+
+.scan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.scan-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.scan-actions .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.scan-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(26, 26, 26, 0.72);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.scan-modal[hidden] {
+  display: none !important;
+}
+
+.scan-modal-panel {
+  width: min(100%, 480px);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 12px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+#scan-reader {
+  min-height: 240px;
+  background: #111;
+}
+
+@media (min-width: 700px) {
+  .scan-modal {
+    align-items: center;
+  }
+}
+
 @media (max-width: 899px) {
   .app-body.has-mobile-nav .wrap {
     padding-bottom: calc(var(--bottom-nav-h) + 16px);

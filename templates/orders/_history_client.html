@@ -1,0 +1,32 @@
+<span class="label-caps">{{ t('intake.history_client') }}</span>
+{% if client %}
+<p class="muted">
+  {{ client.name or '—' }} / <span class="order-sn">{{ client.phone }}</span>
+</p>
+{% elif phone %}
+<p class="muted">{{ t('intake.history_client_empty') }}</p>
+{% endif %}
+
+{% if history %}
+  {% for h in history %}
+  <div class="history-item">
+    <div class="order-card-top">
+      <a class="order-date" href="/orders/{{ h.id }}">{{ h.order_date.strftime('%d.%m.%Y') }}</a>
+      <span class="badge-status {{ h.status.value }}">{{ t('status.' + h.status.value) }}</span>
+    </div>
+    <div class="order-sn">
+      SN: {% if h.machine %}{{ h.machine.serial_number }}{% else %}—{% endif %}
+      {% if h.machine and h.machine.model_name %} · {{ h.machine.model_name }}{% endif %}
+    </div>
+    <div>
+      {% if h.issue_reason %}{{ h.issue_reason.name }}{% endif %}
+      {% if h.comment %}{% if h.issue_reason %} · {% endif %}{{ h.comment }}{% endif %}
+      {% if not h.issue_reason and not h.comment %}<span class="muted">—</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+{% elif client %}
+  <p class="muted">{{ t('intake.history_client_empty') }}</p>
+{% elif not phone %}
+  <p class="muted">{{ t('intake.history_client_hint') }}</p>
+{% endif %}

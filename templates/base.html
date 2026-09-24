@@ -17,8 +17,8 @@
   {% set path = request.url.path %}
   {% set is_admin = role == 'admin' %}
   {% set is_accountant = role == 'accountant' %}
-  {% set on_orders = path == '/' or (path.startswith('/orders') and path != '/orders/new') %}
-  {% set on_new = path == '/orders/new' %}
+  {% set on_orders = path == '/' or (path.startswith('/orders') and path != '/orders/new' and path != '/orders/intake') %}
+  {% set on_new = path == '/orders/intake' or path == '/orders/new' %}
   {% set on_cash = path.startswith('/cash') %}
   {% set on_more = path == '/more' or path.startswith('/dict') or path.startswith('/reports') %}
 
@@ -27,7 +27,7 @@
     <a class="brand" href="/">{{ t('app.name') }}</a>
     <nav class="sidebar-nav">
       <a href="/" class="{% if on_orders %}active{% endif %}">{{ t('nav.orders') }}</a>
-      <a href="/orders/new" class="{% if on_new %}active{% endif %}">{{ t('nav.new_order') }}</a>
+      <a href="/orders/intake" class="{% if on_new %}active{% endif %}">{{ t('nav.intake') }}</a>
       <a href="/cash" class="{% if on_cash %}active{% endif %}">{{ t('nav.cash') }}</a>
       <a href="/cash/entries">{{ t('cash.enter') }}</a>
       <a href="/reports" class="{% if path.startswith('/reports') %}active{% endif %}">{{ t('nav.reports') }}</a>
@@ -49,7 +49,7 @@
       {% if not is_accountant and not is_admin %}
       <nav class="top-nav">
         <a href="/" class="{% if on_orders %}active{% endif %}">{{ t('nav.orders') }}</a>
-        <a href="/orders/new" class="{% if on_new %}active{% endif %}">{{ t('nav.new_order') }}</a>
+        <a href="/orders/intake" class="{% if on_new %}active{% endif %}">{{ t('nav.intake') }}</a>
         <a href="/cash" class="{% if on_cash %}active{% endif %}">{{ t('nav.cash') }}</a>
       </nav>
       {% endif %}
@@ -72,9 +72,9 @@
       <span class="material-symbols-outlined">assignment</span>
       <span>{{ t('nav.orders') }}</span>
     </a>
-    <a href="/orders/new" class="{% if on_new %}active{% endif %}">
-      <span class="material-symbols-outlined">add_box</span>
-      <span>{{ t('nav.new_short') }}</span>
+    <a href="/orders/intake" class="{% if on_new %}active{% endif %}">
+      <span class="material-symbols-outlined">qr_code_scanner</span>
+      <span>{{ t('nav.intake_short') }}</span>
     </a>
     <a href="/cash" class="{% if on_cash %}active{% endif %}">
       <span class="material-symbols-outlined">payments</span>

@@ -16,6 +16,8 @@
     "orders": "Orders",
     "new_order": "New order",
     "new_short": "New",
+    "intake": "Intake",
+    "intake_short": "Intake",
     "clients": "Clients",
     "machines": "Machines",
     "reasons": "Reasons",
@@ -173,5 +175,18 @@
     "updated": "Updated",
     "cache_empty": "Cache is empty. Set PROXY_API_* and run sync.",
     "in_progress": "in progress"
+  },
+  "intake": {
+    "title": "Intake",
+    "accept": "Accept",
+    "scan_qr": "Camera · QR",
+    "scan_barcode": "Camera · barcode",
+    "camera": "Camera",
+    "close": "Close",
+    "history_client": "Client history",
+    "history_client_empty": "No visits for this phone yet.",
+    "history_client_hint": "Enter a phone to see past orders.",
+    "phone_required": "Client phone is required",
+    "scan_denied": "Camera unavailable — enter the serial manually."
   }
 }

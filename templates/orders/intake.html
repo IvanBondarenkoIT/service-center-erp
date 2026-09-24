@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}{{ t('intake.title') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('intake.title') }}</h1>
+  <a class="btn btn-secondary" href="/">{{ t('orders.back') }}</a>
+</div>
+
+{% if error == 'sn_required' %}
+<p class="flash-error">{{ t('orders.sn_missing') }}</p>
+{% elif error == 'phone_required' %}
+<p class="flash-error">{{ t('intake.phone_required') }}</p>
+{% endif %}
+
+<form method="post" action="/orders/intake" class="stack intake-form" id="intake-form">
+  <section class="card">
+    <h2>{{ t('orders.client') }}</h2>
+    <div>
+      <label for="new_client_phone">{{ t('orders.phone') }} *</label>
+      <input id="new_client_phone" name="new_client_phone" type="tel" class="input-mono" required
+        placeholder="555-12-34-56"
+        value="{{ phone }}"
+        hx-get="/orders/partials/history-by-client"
+        hx-trigger="keyup changed delay:400ms"
+        hx-target="#client-history-box"
+        hx-vals="js:{phone: document.getElementById('new_client_phone').value}" />
+    </div>
+    <div class="field-gap">
+      <label for="new_client_name">{{ t('orders.name_optional') }}</label>
+      <input id="new_client_name" name="new_client_name" type="text" value="{{ name }}" />
+    </div>
+    <div class="history-box field-gap" id="client-history-box">
+      {% set client = None %}
+      {% set history = [] %}
+      {% include "orders/_history_client.html" %}
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>{{ t('orders.machine') }}</h2>
+    <div>
+      <label for="new_machine_serial">{{ t('orders.serial') }} *</label>
+      <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono" required
+        placeholder="SN"
+        value="{{ serial }}"
+        hx-get="/orders/partials/history"
+        hx-trigger="keyup changed delay:400ms, scan-done"
+        hx-target="#history-box"
+        hx-vals="js:{serial: document.getElementById('new_machine_serial').value}" />
+      <div class="scan-actions field-gap">
+        <button type="button" class="btn btn-secondary" id="scan-qr-btn" data-scan-mode="qr">
+          <span class="material-symbols-outlined">qr_code_scanner</span>
+          {{ t('intake.scan_qr') }}
+        </button>
+        <button type="button" class="btn btn-secondary" id="scan-barcode-btn" data-scan-mode="barcode">
+          <span class="material-symbols-outlined">barcode_scanner</span>
+          {{ t('intake.scan_barcode') }}
+        </button>
+      </div>
+      <p class="muted scan-denied" id="scan-denied" hidden>{{ t('intake.scan_denied') }}</p>
+    </div>
+    <div class="history-box field-gap" id="history-box">
+      {% set machine = None %}
+      {% set history = [] %}
+      {% include "orders/_history.html" %}
+    </div>
+  </section>
+
+  <div class="form-save-bar">
+    <button class="btn btn-login" type="submit">{{ t('intake.accept') }}</button>
+  </div>
+</form>
+
+<div id="scan-modal" class="scan-modal" hidden>
+  <div class="scan-modal-panel">
+    <div class="toolbar">
+      <h2 id="scan-modal-title">{{ t('intake.camera') }}</h2>
+      <button type="button" class="btn btn-secondary" id="scan-close">{{ t('intake.close') }}</button>
+    </div>
+    <div id="scan-reader"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="/static/intake-scan.js"></script>
+{% endblock %}

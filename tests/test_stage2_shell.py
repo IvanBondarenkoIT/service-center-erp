@@ -54,9 +54,10 @@ def test_mechanic_tabs_without_admin_links(client) -> None:
     assert r.status_code == 200
     html = r.text
     assert "Заказы" in html
-    assert "Новый" in html
+    assert "Приёмка" in html
     assert "Касса" in html
     assert 'class="bottom-nav"' in html
+    assert "/orders/intake" in html
     assert "/dict/clients" not in html
     assert "/reports" not in html
 
@@ -97,7 +98,7 @@ def test_screens_use_stitch_css_not_tailwind(client) -> None:
     login(client, "admin", settings.seed_admin_password)
     paths = (
         "/",
-        "/orders/new",
+        "/orders/intake",
         "/cash",
         "/cash/entries",
         "/reports",

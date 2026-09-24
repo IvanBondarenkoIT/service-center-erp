@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.services.phones import normalize_phone
 from app.services.cash_book import BUSINESS_TZ
+from app.services.serial_scan import serial_from_scan
 from app.templating import templates
 
 router = APIRouter(tags=["orders"])
@@ -287,10 +288,96 @@ def orders_list(
 @router.get("/orders/new", response_class=HTMLResponse)
 def order_new(
     request: Request,
+    user: User = Depends(get_staff_user),
+):
+    return RedirectResponse("/orders/intake", status_code=303)
+
+
+@router.get("/orders/intake", response_class=HTMLResponse)
+def order_intake_form(
+    request: Request,
+    user: User = Depends(get_staff_user),
+):
+    return templates.TemplateResponse(
+        request,
+        "orders/intake.html",
+        {
+            "user": user,
+            "error": "",
+            "phone": "",
+            "name": "",
+            "serial": "",
+        },
+    )
+
+
+@router.post("/orders/intake")
+async def order_intake_submit(
+    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_staff_user),
 ):
-    return _order_form(request, db, user, order=None)
+    form = await request.form()
+    serial = serial_from_scan(str(form.get("new_machine_serial") or ""))
+    phone = str(form.get("new_client_phone") or "").strip()
+    name = str(form.get("new_client_name") or "").strip()
+    phone_n = normalize_phone(phone)
+
+    def fail(code: str):
+        return templates.TemplateResponse(
+            request,
+            "orders/intake.html",
+            {
+                "user": user,
+                "error": code,
+                "phone": phone,
+                "name": name,
+                "serial": serial,
+            },
+            status_code=400,
+        )
+
+    if not serial:
+        return fail("sn_required")
+    if not phone_n:
+        return fail("phone_required")
+
+    assignee_id = user.id
+    service_center_id = user.service_center_id or 0
+    if user.role == UserRole.admin:
+        assignee_id = int(form.get("assignee_id") or user.id)
+        service_center_id = int(form.get("service_center_id") or service_center_id or 0)
+    if not service_center_id:
+        center = db.scalar(select(ServiceCenter).order_by(ServiceCenter.id).limit(1))
+        if not center:
+            raise HTTPException(400, "no_center")
+        service_center_id = center.id
+
+    machine = _ensure_machine(db, serial, "", None)
+    client = _ensure_client(db, phone, name)
+    _link_client_machine(db, client, machine)
+
+    order = ServiceOrder(
+        order_date=date.today(),
+        assignee_id=assignee_id,
+        service_center_id=service_center_id,
+        machine_id=machine.id,
+        client_id=client.id if client else None,
+        comment="",
+        status=OrderStatus.in_progress,
+        lines=[
+            OrderLine(
+                line_type=LineType.work,
+                description="",
+                payment_type=PaymentType.cash,
+                amount_work=Decimal("0"),
+                amount_parts=Decimal("0"),
+            )
+        ],
+    )
+    db.add(order)
+    db.commit()
+    return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
 
 @router.get("/orders/{order_id}", response_class=HTMLResponse)
@@ -555,6 +642,27 @@ def line_row_partial(request: Request, user: User = Depends(get_staff_user)):
     )
 
 
+def _client_history(db: Session, phone: str, limit: int = 30) -> tuple[Client | None, list[ServiceOrder]]:
+    phone_n = normalize_phone(phone)
+    if not phone_n:
+        return None, []
+    client = db.scalar(select(Client).where(Client.phone == phone_n))
+    if not client:
+        return None, []
+    stmt = (
+        select(ServiceOrder)
+        .options(
+            joinedload(ServiceOrder.machine),
+            joinedload(ServiceOrder.issue_reason),
+            joinedload(ServiceOrder.assignee),
+        )
+        .where(ServiceOrder.client_id == client.id)
+        .order_by(ServiceOrder.order_date.desc(), ServiceOrder.id.desc())
+        .limit(limit)
+    )
+    return client, list(db.scalars(stmt).unique())
+
+
 @router.get("/orders/partials/history", response_class=HTMLResponse)
 def history_partial(
     request: Request,
@@ -567,12 +675,28 @@ def history_partial(
     if machine_id:
         machine = db.get(Machine, machine_id)
     elif serial.strip():
-        machine = db.scalar(select(Machine).where(Machine.serial_number == serial.strip()))
+        sn = serial_from_scan(serial)
+        machine = db.scalar(select(Machine).where(Machine.serial_number == sn))
     history = _machine_history(db, machine.id) if machine else []
     return templates.TemplateResponse(
         request,
         "orders/_history.html",
         {"user": user, "machine": machine, "history": history},
+    )
+
+
+@router.get("/orders/partials/history-by-client", response_class=HTMLResponse)
+def history_by_client_partial(
+    request: Request,
+    phone: str = "",
+    db: Session = Depends(get_db),
+    user: User = Depends(get_staff_user),
+):
+    client, history = _client_history(db, phone)
+    return templates.TemplateResponse(
+        request,
+        "orders/_history_client.html",
+        {"user": user, "client": client, "history": history, "phone": phone},
     )
 
 

@@ -3,7 +3,7 @@
 {% block content %}
 <div class="toolbar">
   <h1>{{ t('orders.title') }}{% if user.role.value != 'admin' %} · {{ t('orders.mine') }}{% endif %}</h1>
-  <a class="btn desktop-only" href="/orders/new">{{ t('orders.new') }}</a>
+  <a class="btn desktop-only" href="/orders/intake">{{ t('nav.intake') }}</a>
 </div>
 
 <form method="get" action="/" class="order-filters">
