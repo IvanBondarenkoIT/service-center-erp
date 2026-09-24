@@ -36,17 +36,27 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .material-symbols-outlined {
-  font-family: "Material Symbols Outlined";
+  font-family: "Material Symbols Outlined", sans-serif;
   font-weight: normal;
   font-style: normal;
   font-size: 22px;
   line-height: 1;
   letter-spacing: normal;
-  text-transform: none;
+  text-transform: none !important;
   display: inline-block;
   white-space: nowrap;
+  word-wrap: normal;
   direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+.bottom-nav a .material-symbols-outlined,
+.btn .material-symbols-outlined,
+.scan-actions .material-symbols-outlined {
+  text-transform: none !important;
 }
 
 .app-body.has-user.is-admin {

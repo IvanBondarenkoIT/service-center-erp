@@ -48,16 +48,15 @@
         hx-target="#history-box"
         hx-vals="js:{serial: document.getElementById('new_machine_serial').value}" />
       <div class="scan-actions field-gap">
-        <button type="button" class="btn btn-secondary" id="scan-qr-btn" data-scan-mode="qr">
-          <span class="material-symbols-outlined">qr_code_scanner</span>
-          {{ t('intake.scan_qr') }}
+        <button type="button" class="btn btn-secondary" id="scan-camera-btn">
+          <span class="material-symbols-outlined">photo_camera</span>
+          {{ t('intake.scan') }}
         </button>
-        <button type="button" class="btn btn-secondary" id="scan-barcode-btn" data-scan-mode="barcode">
-          <span class="material-symbols-outlined">barcode_scanner</span>
-          {{ t('intake.scan_barcode') }}
-        </button>
+        <input id="scan-file-input" type="file" accept="image/*" capture="environment" hidden />
       </div>
-      <p class="muted scan-denied" id="scan-denied" hidden>{{ t('intake.scan_denied') }}</p>
+      <p class="muted" id="scan-hint">{{ t('intake.scan_hint') }}</p>
+      <p class="muted" id="scan-status" data-msg="{{ t('intake.scan_recognizing') }}" hidden></p>
+      <p class="flash-error" id="scan-failed" hidden>{{ t('intake.scan_failed') }}</p>
     </div>
     <div class="history-box field-gap" id="history-box">
       {% set machine = None %}
@@ -71,15 +70,7 @@
   </div>
 </form>
 
-<div id="scan-modal" class="scan-modal" hidden>
-  <div class="scan-modal-panel">
-    <div class="toolbar">
-      <h2 id="scan-modal-title">{{ t('intake.camera') }}</h2>
-      <button type="button" class="btn btn-secondary" id="scan-close">{{ t('intake.close') }}</button>
-    </div>
-    <div id="scan-reader"></div>
-  </div>
-</div>
+<div id="scan-file-fallback" hidden></div>
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="/static/intake-scan.js"></script>

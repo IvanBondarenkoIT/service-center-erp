@@ -179,6 +179,10 @@
   "intake": {
     "title": "Intake",
     "accept": "Accept",
+    "scan": "Scan",
+    "scan_hint": "The phone camera will open — point at a QR or barcode and take a photo.",
+    "scan_recognizing": "Recognizing…",
+    "scan_failed": "Could not read the code. Take another photo or enter the SN manually.",
     "scan_qr": "Camera · QR",
     "scan_barcode": "Camera · barcode",
     "camera": "Camera",

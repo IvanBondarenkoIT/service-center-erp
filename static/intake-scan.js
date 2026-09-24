@@ -33,79 +33,156 @@
 
   window.serialFromScan = serialFromScan;
 
-  var modal = document.getElementById("scan-modal");
-  var denied = document.getElementById("scan-denied");
   var serialInput = document.getElementById("new_machine_serial");
-  var title = document.getElementById("scan-modal-title");
-  var scanner = null;
+  var fileInput = document.getElementById("scan-file-input");
+  var scanBtn = document.getElementById("scan-camera-btn");
+  var statusEl = document.getElementById("scan-status");
+  var failedEl = document.getElementById("scan-failed");
+  var hintEl = document.getElementById("scan-hint");
 
-  function stopScanner() {
-    if (!scanner) return Promise.resolve();
-    return scanner
-      .stop()
-      .catch(function () {})
-      .then(function () {
-        try {
-          scanner.clear();
-        } catch (e) {}
-        scanner = null;
+  var DETECTOR_FORMATS = [
+    "qr_code",
+    "data_matrix",
+    "aztec",
+    "pdf417",
+    "code_128",
+    "code_39",
+    "ean_13",
+    "ean_8",
+    "upc_a",
+    "upc_e",
+    "itf",
+  ];
+
+  function setBusy(busy, message) {
+    if (scanBtn) scanBtn.disabled = !!busy;
+    if (statusEl) {
+      if (busy && message) {
+        statusEl.textContent = message;
+        statusEl.hidden = false;
+      } else {
+        statusEl.hidden = true;
+        statusEl.textContent = "";
+      }
+    }
+    if (!busy && hintEl) hintEl.hidden = false;
+    if (busy && hintEl) hintEl.hidden = true;
+  }
+
+  function showFailed(show) {
+    if (failedEl) failedEl.hidden = !show;
+  }
+
+  function applySerial(raw) {
+    if (!serialInput) return false;
+    var sn = serialFromScan(raw);
+    if (!sn) return false;
+    serialInput.value = sn;
+    serialInput.dispatchEvent(new Event("scan-done", { bubbles: true }));
+    showFailed(false);
+    return true;
+  }
+
+  function loadImageBitmap(file) {
+    if (window.createImageBitmap) {
+      return createImageBitmap(file);
+    }
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error("image_load"));
+      };
+      img.src = url;
+    });
+  }
+
+  function decodeWithBarcodeDetector(file) {
+    if (typeof BarcodeDetector === "undefined") {
+      return Promise.resolve(null);
+    }
+    var detector;
+    try {
+      detector = new BarcodeDetector({ formats: DETECTOR_FORMATS });
+    } catch (e) {
+      try {
+        detector = new BarcodeDetector();
+      } catch (e2) {
+        return Promise.resolve(null);
+      }
+    }
+    return loadImageBitmap(file)
+      .then(function (bitmap) {
+        return detector.detect(bitmap).then(function (codes) {
+          if (bitmap.close) bitmap.close();
+          if (codes && codes.length && codes[0].rawValue) {
+            return codes[0].rawValue;
+          }
+          return null;
+        });
+      })
+      .catch(function () {
+        return null;
       });
   }
 
-  function closeModal() {
-    if (modal) modal.hidden = true;
-    return stopScanner();
-  }
-
-  function onScanSuccess(decoded) {
-    if (!serialInput) return;
-    serialInput.value = serialFromScan(decoded);
-    serialInput.dispatchEvent(new Event("scan-done", { bubbles: true }));
-    closeModal();
-  }
-
-  function startScan(mode) {
+  function decodeWithHtml5Qrcode(file) {
     if (typeof Html5Qrcode === "undefined") {
-      if (denied) denied.hidden = false;
-      return;
+      return Promise.resolve(null);
     }
-    if (!modal) return;
-    if (denied) denied.hidden = true;
-    if (title) {
-      title.textContent = mode === "barcode" ? "Barcode" : "QR";
-    }
-    modal.hidden = false;
-    stopScanner().then(function () {
-      scanner = new Html5Qrcode("scan-reader");
-      var formats =
-        mode === "barcode"
-          ? [
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.CODE_39,
-              Html5QrcodeSupportedFormats.EAN_13,
-              Html5QrcodeSupportedFormats.EAN_8,
-              Html5QrcodeSupportedFormats.UPC_A,
-              Html5QrcodeSupportedFormats.UPC_E,
-              Html5QrcodeSupportedFormats.ITF,
-            ]
-          : [Html5QrcodeSupportedFormats.QR_CODE];
-      var config = { fps: 10, qrbox: { width: 250, height: 250 }, formatsToSupport: formats };
-      scanner
-        .start({ facingMode: "environment" }, config, onScanSuccess, function () {})
-        .catch(function () {
-          if (denied) denied.hidden = false;
-          closeModal();
-        });
-    });
+    var reader = new Html5Qrcode("scan-file-fallback");
+    return reader
+      .scanFile(file, true)
+      .then(function (decoded) {
+        try {
+          reader.clear();
+        } catch (e) {}
+        return decoded || null;
+      })
+      .catch(function () {
+        try {
+          reader.clear();
+        } catch (e) {}
+        return null;
+      });
   }
 
-  document.querySelectorAll("[data-scan-mode]").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-      startScan(btn.getAttribute("data-scan-mode") || "qr");
+  function decodeFile(file) {
+    var recognizing = (statusEl && statusEl.dataset.msg) || "…";
+    setBusy(true, recognizing);
+    showFailed(false);
+    return decodeWithBarcodeDetector(file)
+      .then(function (value) {
+        if (value) return value;
+        return decodeWithHtml5Qrcode(file);
+      })
+      .then(function (value) {
+        setBusy(false);
+        if (!applySerial(value)) {
+          showFailed(true);
+        }
+      })
+      .catch(function () {
+        setBusy(false);
+        showFailed(true);
+      });
+  }
+
+  if (scanBtn && fileInput) {
+    scanBtn.addEventListener("click", function () {
+      showFailed(false);
+      fileInput.value = "";
+      fileInput.click();
     });
-  });
-  var closeBtn = document.getElementById("scan-close");
-  if (closeBtn) closeBtn.addEventListener("click", function () {
-    closeModal();
-  });
+    fileInput.addEventListener("change", function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      decodeFile(file);
+    });
+  }
 })();
