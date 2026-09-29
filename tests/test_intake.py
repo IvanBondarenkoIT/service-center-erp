@@ -61,9 +61,14 @@ def test_intake_creates_order_and_redirects(client) -> None:
     page = client.get("/orders/intake")
     assert page.status_code == 200
     assert "Приёмка" in page.text
-    assert "scan-camera-btn" in page.text
-    assert "/static/intake-scan.js" in page.text
+    assert 'id="scan-camera-btn"' in page.text
     assert 'id="scan-file-input"' in page.text
+    assert 'capture="environment"' in page.text
+    assert 'class="btn btn-secondary scan-camera-btn"' in page.text
+    assert "fileInput.click" not in page.text
+    assert 'name="new_machine_model"' in page.text
+    assert "/dict/erp-suggest" in page.text
+    assert "/static/intake-scan.js" in page.text
     assert "capture=" in page.text
 
     r = client.post(

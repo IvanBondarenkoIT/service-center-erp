@@ -164,6 +164,7 @@
     "cache": "Cache",
     "machines_count": "Machines",
     "parts_count": "Parts",
+    "clients_count": "Clients",
     "cache_hint": "Search and forms read the local DB only, not Firebird.",
     "last_sync": "Last sync",
     "never_synced": "Sync has not run yet",
@@ -191,6 +192,10 @@
     "history_client_empty": "No visits for this phone yet.",
     "history_client_hint": "Enter a phone to see past orders.",
     "phone_required": "Client phone is required",
-    "scan_denied": "Camera unavailable — enter the serial manually."
+    "scan_denied": "Camera unavailable — enter the serial manually.",
+    "fill_name": "Use name",
+    "erp_purchases": "Client has shopped with us, receipts",
+    "erp_last_purchase": "last",
+    "erp_known": "Client is in the store database"
   }
 }

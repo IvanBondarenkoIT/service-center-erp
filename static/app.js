@@ -32,7 +32,26 @@ function syncLineWarranty(card, on) {
   if (pay) pay.value = on ? "garanty" : "Cash";
 }
 
+function fillClientName(name, force) {
+  const nameInput = document.getElementById("new_client_name");
+  if (!nameInput || !name) return;
+  if (force || !nameInput.value.trim()) nameInput.value = name;
+}
+
+document.addEventListener("htmx:afterSwap", (event) => {
+  const found = event.target && event.target.querySelector
+    ? event.target.querySelector("[data-erp-name]")
+    : null;
+  if (found) fillClientName(found.dataset.erpName, false);
+});
+
 document.addEventListener("click", (event) => {
+  const fillBtn = event.target.closest("[data-fill-name]");
+  if (fillBtn) {
+    fillClientName(fillBtn.dataset.fillName, true);
+    return;
+  }
+
   const chip = event.target.closest("button.chip");
   if (!chip || chip.disabled) return;
 

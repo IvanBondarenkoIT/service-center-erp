@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user, require_admin, require_admin_screen
 from app.models import Client, IssueReason, Machine, User
+from app.services.erp_clients import count_cached_clients
 from app.services.erp_sync import (
     count_cached_goods,
     get_sync_status,
@@ -167,6 +168,7 @@ def erp_catalog(
             "sync_msg": sync_msg,
             "cache_count_machines": count_cached_goods(db, "machine"),
             "cache_count_parts": count_cached_goods(db, "part"),
+            "cache_count_clients": count_cached_clients(db),
         },
     )
 
@@ -198,7 +200,7 @@ def erp_suggest(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    items = search_cached_goods(db, q, kind=kind, limit=15)
+    items = search_cached_goods(db, q, kind=kind, limit=20)
     return templates.TemplateResponse(
         request,
         "partials/erp_suggest.html",

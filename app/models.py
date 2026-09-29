@@ -232,6 +232,23 @@ class ErpGoodsCache(Base):
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ErpClientCache(Base):
+    __tablename__ = "erp_client_cache"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    erp_orgn_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    card_no: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    phone_raw: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    phone_norm: Mapped[str] = mapped_column(String(32), nullable=False, default="", index=True)
+    purchase_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    purchase_sum: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False, default=0)
+    last_purchase_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ErpSyncState(Base):
     __tablename__ = "erp_sync_state"
 

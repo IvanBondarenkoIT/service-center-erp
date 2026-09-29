@@ -55,7 +55,10 @@
   ];
 
   function setBusy(busy, message) {
-    if (scanBtn) scanBtn.disabled = !!busy;
+    if (scanBtn) {
+      scanBtn.classList.toggle("is-busy", !!busy);
+      scanBtn.setAttribute("aria-busy", busy ? "true" : "false");
+    }
     if (statusEl) {
       if (busy && message) {
         statusEl.textContent = message;
@@ -173,11 +176,11 @@
       });
   }
 
-  if (scanBtn && fileInput) {
-    scanBtn.addEventListener("click", function () {
+  if (fileInput) {
+    fileInput.addEventListener("click", function () {
       showFailed(false);
+      // Allow picking/capturing the same file again after a failed attempt.
       fileInput.value = "";
-      fileInput.click();
     });
     fileInput.addEventListener("change", function () {
       var file = fileInput.files && fileInput.files[0];

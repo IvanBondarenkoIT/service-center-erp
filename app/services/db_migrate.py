@@ -20,12 +20,20 @@ def _column_names(insp, table: str) -> set[str]:
 
 def ensure_schema() -> None:
     """Create new tables and add columns/enum values create_all will not alter."""
-    from app.models import CashEntry, CashOpening, ErpGoodsCache, ErpSyncState  # noqa: F401
+    from app.models import (  # noqa: F401
+        CashEntry,
+        CashOpening,
+        ErpClientCache,
+        ErpGoodsCache,
+        ErpSyncState,
+    )
 
     insp = inspect(engine)
     existing = set(insp.get_table_names())
     dialect = engine.dialect.name
 
+    if "erp_client_cache" not in existing:
+        ErpClientCache.__table__.create(bind=engine, checkfirst=True)
     if "erp_sync_state" not in existing:
         ErpSyncState.__table__.create(bind=engine, checkfirst=True)
     if "erp_goods_cache" not in existing:

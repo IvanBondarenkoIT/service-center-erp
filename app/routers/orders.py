@@ -24,6 +24,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.services.erp_clients import find_erp_client
 from app.services.phones import normalize_phone
 from app.services.cash_book import BUSINESS_TZ
 from app.services.serial_scan import serial_from_scan
@@ -81,6 +82,16 @@ def _ensure_client(db: Session, phone: str, name: str) -> Client | None:
     db.add(client)
     db.flush()
     return client
+
+
+def _name_from_erp_if_new(db: Session, phone: str, name: str) -> str:
+    phone_n = normalize_phone(phone)
+    if name or not phone_n:
+        return name
+    if db.scalar(select(Client).where(Client.phone == phone_n)):
+        return name
+    erp_client = find_erp_client(db, phone_n)
+    return erp_client.name if erp_client and erp_client.name else name
 
 
 def _ensure_machine(
@@ -307,6 +318,7 @@ def order_intake_form(
             "phone": "",
             "name": "",
             "serial": "",
+            "model": "",
         },
     )
 
@@ -321,6 +333,9 @@ async def order_intake_submit(
     serial = serial_from_scan(str(form.get("new_machine_serial") or ""))
     phone = str(form.get("new_client_phone") or "").strip()
     name = str(form.get("new_client_name") or "").strip()
+    model = str(form.get("new_machine_model") or "").strip()
+    erp_goods_id_raw = str(form.get("erp_goods_id") or "").strip()
+    erp_goods_id = int(erp_goods_id_raw) if erp_goods_id_raw.isdigit() else None
     phone_n = normalize_phone(phone)
 
     def fail(code: str):
@@ -333,6 +348,7 @@ async def order_intake_submit(
                 "phone": phone,
                 "name": name,
                 "serial": serial,
+                "model": model,
             },
             status_code=400,
         )
@@ -353,7 +369,8 @@ async def order_intake_submit(
             raise HTTPException(400, "no_center")
         service_center_id = center.id
 
-    machine = _ensure_machine(db, serial, "", None)
+    name = _name_from_erp_if_new(db, phone, name)
+    machine = _ensure_machine(db, serial, model, erp_goods_id)
     client = _ensure_client(db, phone, name)
     _link_client_machine(db, client, machine)
 
@@ -507,6 +524,7 @@ async def order_save(
     new_name = str(form.get("new_client_name") or "").strip()
     client = None
     if new_phone or new_name:
+        new_name = _name_from_erp_if_new(db, new_phone, new_name)
         client = _ensure_client(db, new_phone, new_name)
     elif client_id_raw.isdigit():
         client = db.get(Client, int(client_id_raw))
@@ -693,10 +711,17 @@ def history_by_client_partial(
     user: User = Depends(get_staff_user),
 ):
     client, history = _client_history(db, phone)
+    erp_client = find_erp_client(db, phone)
     return templates.TemplateResponse(
         request,
         "orders/_history_client.html",
-        {"user": user, "client": client, "history": history, "phone": phone},
+        {
+            "user": user,
+            "client": client,
+            "history": history,
+            "phone": phone,
+            "erp_client": erp_client,
+        },
     )
 
 

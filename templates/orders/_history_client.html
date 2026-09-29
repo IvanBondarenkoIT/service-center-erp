@@ -3,8 +3,13 @@
 <p class="muted">
   {{ client.name or '—' }} / <span class="order-sn">{{ client.phone }}</span>
 </p>
-{% elif phone %}
-<p class="muted">{{ t('intake.history_client_empty') }}</p>
+{% elif erp_client %}
+<p class="muted erp-client-found" data-erp-name="{{ erp_client.name }}">
+  {{ erp_client.name or '—' }}
+  {% if erp_client.name %}
+  <button type="button" class="btn btn-secondary btn-fill-name" data-fill-name="{{ erp_client.name }}">{{ t('intake.fill_name') }}</button>
+  {% endif %}
+</p>
 {% endif %}
 
 {% if history %}
@@ -25,8 +30,27 @@
     </div>
   </div>
   {% endfor %}
-{% elif client %}
+{% endif %}
+
+{% if erp_client %}
+<div class="history-item erp-purchases">
+  <span class="material-symbols-outlined" aria-hidden="true">shopping_bag</span>
+  {% if erp_client.purchase_count %}
+  <span>
+    {{ t('intake.erp_purchases') }}: {{ erp_client.purchase_count }}
+    {% if erp_client.last_purchase_at %} · {{ t('intake.erp_last_purchase') }} {{ erp_client.last_purchase_at.strftime('%d.%m.%Y') }}{% endif %}
+    {% if user and user.role.value == 'admin' %} · {{ '%.2f'|format(erp_client.purchase_sum) }} {{ t('orders.currency') }}{% endif %}
+  </span>
+  {% else %}
+  <span>{{ t('intake.erp_known') }}</span>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if not history %}
+  {% if client or (phone and not erp_client) %}
   <p class="muted">{{ t('intake.history_client_empty') }}</p>
-{% elif not phone %}
+  {% elif not phone %}
   <p class="muted">{{ t('intake.history_client_hint') }}</p>
+  {% endif %}
 {% endif %}

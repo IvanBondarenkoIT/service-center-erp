@@ -105,13 +105,18 @@
       <label for="new_client_phone">{{ t('orders.phone') }}</label>
       <input id="new_client_phone" name="new_client_phone" type="tel" class="input-mono"
         placeholder="555-12-34-56"
-        value="{% if order and order.client %}{{ order.client.phone }}{% endif %}" />
+        value="{% if order and order.client %}{{ order.client.phone }}{% endif %}"
+        hx-get="/orders/partials/history-by-client"
+        hx-trigger="keyup changed delay:400ms"
+        hx-target="#client-history-box"
+        hx-vals="js:{phone: document.getElementById('new_client_phone').value}" />
     </div>
     <div class="field-gap">
       <label for="new_client_name">{{ t('orders.name_optional') }}</label>
       <input id="new_client_name" name="new_client_name" type="text"
         value="{% if order and order.client %}{{ order.client.name }}{% endif %}" />
     </div>
+    <div class="history-box field-gap" id="client-history-box"></div>
   </section>
 
   <section class="card">

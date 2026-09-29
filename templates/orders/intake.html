@@ -48,15 +48,28 @@
         hx-target="#history-box"
         hx-vals="js:{serial: document.getElementById('new_machine_serial').value}" />
       <div class="scan-actions field-gap">
-        <button type="button" class="btn btn-secondary" id="scan-camera-btn">
-          <span class="material-symbols-outlined">photo_camera</span>
+        <label class="btn btn-secondary scan-camera-btn" id="scan-camera-btn">
+          <input id="scan-file-input" class="scan-file-input" type="file"
+            accept="image/*" capture="environment" />
+          <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
           {{ t('intake.scan') }}
-        </button>
-        <input id="scan-file-input" type="file" accept="image/*" capture="environment" hidden />
+        </label>
       </div>
       <p class="muted" id="scan-hint">{{ t('intake.scan_hint') }}</p>
       <p class="muted" id="scan-status" data-msg="{{ t('intake.scan_recognizing') }}" hidden></p>
       <p class="flash-error" id="scan-failed" hidden>{{ t('intake.scan_failed') }}</p>
+    </div>
+    <div class="field-gap">
+      <label for="new_machine_model">{{ t('orders.model') }}</label>
+      <input id="new_machine_model" name="new_machine_model" type="text" autocomplete="off"
+        value="{{ model }}"
+        placeholder="ECAM22110"
+        hx-get="/dict/erp-suggest"
+        hx-trigger="keyup changed delay:300ms"
+        hx-target="#erp-model-suggest"
+        hx-vals="js:{q: document.getElementById('new_machine_model').value, kind: 'machine'}" />
+      <input type="hidden" id="erp_goods_id" name="erp_goods_id" value="" />
+      <div id="erp-model-suggest"></div>
     </div>
     <div class="history-box field-gap" id="history-box">
       {% set machine = None %}

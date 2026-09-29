@@ -123,6 +123,8 @@ class Settings(BaseSettings):
     erp_sync_stale_hours: int = 24
     erp_sync_refresh_batch: int = 100
     erp_sync_probe_skip_hours: int = 6
+    erp_clients_batch_size: int = 500
+    erp_clients_max_batches: int = 40
 
     seed_admin_password: str = "admin123"
     seed_mechanic_password: str = "mechanic123"

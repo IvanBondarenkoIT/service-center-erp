@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import threading
 import time
 from datetime import datetime, timedelta
@@ -311,6 +312,16 @@ def sync_erp_catalog(db: Session, mode: SyncMode = "incremental") -> dict[str, A
             results["scopes"][scope] = _sync_scope(db, client, scope, mode)
             db.commit()
 
+        from app.services.erp_clients import sync_erp_clients
+
+        try:
+            results["scopes"]["clients"] = sync_erp_clients(db, client, mode)
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            logger.exception("ERP clients sync failed")
+            results["scopes"]["clients"] = {"error": str(exc)[:200]}
+
         totals = {"added": 0, "updated": 0, "unchanged": 0, "batches": 0, "has_more": False}
         for s in results["scopes"].values():
             totals["added"] += s.get("added", 0)
@@ -357,11 +368,70 @@ def count_cached_goods(db: Session, kind: str | None = None) -> int:
     return int(db.scalar(stmt) or 0)
 
 
+_NON_ALNUM = re.compile(r"[\W_]+", re.UNICODE)
+
+BRAND_WORDS = (
+    "delonghi",
+    "delongni",
+    "delonghie",
+    "saeco",
+    "philips",
+    "gaggia",
+    "nespresso",
+    "braun",
+    "siemens",
+    "bosch",
+    "kenwood",
+    "caffitaly",
+    "nivona",
+    "jura",
+    "melitta",
+    "krups",
+    "aeg",
+    "bork",
+)
+
+
+def normalize_model(value: str | None) -> str:
+    """Lowercase letters and digits only: 'ECAM 22.110.B' -> 'ecam22110b'."""
+    return _NON_ALNUM.sub("", str(value or "").lower())
+
+
+def _model_part(norm_name: str) -> str:
+    for brand in sorted(BRAND_WORDS, key=len, reverse=True):
+        if norm_name.startswith(brand) and len(norm_name) > len(brand):
+            return norm_name[len(brand) :]
+    return norm_name
+
+
+def _rank(norm_name: str, needle: str) -> int | None:
+    model = _model_part(norm_name)
+    if model == needle or norm_name == needle:
+        return 0
+    if model.startswith(needle) or norm_name.startswith(needle):
+        return 1
+    if needle in norm_name:
+        return 2
+    return None
+
+
 def search_cached_goods(db: Session, q: str, kind: str | None = None, limit: int = 20):
     stmt = select(ErpGoodsCache).where(ErpGoodsCache.is_active.is_(True))
     if kind:
         stmt = stmt.where(ErpGoodsCache.kind == kind)
-    if q:
-        stmt = stmt.where(ErpGoodsCache.name.ilike(f"%{q.strip()}%"))
-    stmt = stmt.order_by(ErpGoodsCache.name).limit(limit)
-    return list(db.scalars(stmt))
+    tokens = [normalize_model(t) for t in (q or "").split()]
+    tokens = [t for t in tokens if t]
+    if not tokens:
+        return list(db.scalars(stmt.order_by(ErpGoodsCache.name).limit(limit)))
+
+    joined = "".join(tokens)
+    scored: list[tuple[int, str, ErpGoodsCache]] = []
+    for item in db.scalars(stmt):
+        norm = normalize_model(item.name)
+        rank = _rank(norm, joined)
+        if rank is None and len(tokens) > 1 and all(t in norm for t in tokens):
+            rank = 2
+        if rank is not None:
+            scored.append((rank, norm, item))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [item for _, _, item in scored[:limit]]
