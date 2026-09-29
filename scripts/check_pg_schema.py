@@ -62,6 +62,21 @@ def admin_phase(admin_url: str, reset: bool) -> str:
     return app_url.render_as_string(hide_password=False)
 
 
+def report_failure(message: str) -> None:
+    print(f"FAIL: {message}")
+    if os.environ.get("GITHUB_ACTIONS"):
+        flat = message.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+        print(f"::error title=check_pg_schema::{flat}")
+
+
+def run_guarded(fn, *args) -> int:
+    try:
+        return fn(*args)
+    except Exception as exc:  # noqa: BLE001
+        report_failure(f"{type(exc).__name__}: {exc}"[:1500])
+        return 1
+
+
 def app_phase() -> int:
     from app.database import Base, SessionLocal, engine
     import app.models  # noqa: F401
@@ -115,7 +130,7 @@ def app_phase() -> int:
 
     if problems:
         for p in problems:
-            print(f"FAIL: {p}")
+            report_failure(p)
         return 1
     print(f"OK: {len(expected)} tables and {len(ENUM_TYPES)} enum types in schema {ROLE}")
     return 0
@@ -128,13 +143,17 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.app_phase:
-        return app_phase()
+        return run_guarded(app_phase)
 
     admin_url = (os.environ.get("PG_ADMIN_URL") or "").strip()
     if not admin_url:
         print("PG_ADMIN_URL is not set", file=sys.stderr)
         return 2
-    app_url = admin_phase(admin_url, args.reset)
+    try:
+        app_url = admin_phase(admin_url, args.reset)
+    except Exception as exc:  # noqa: BLE001
+        report_failure(f"admin phase: {type(exc).__name__}: {exc}"[:1500])
+        return 1
     env = {k: v for k, v in os.environ.items() if not k.startswith(("PG", "DATABASE_"))}
     env["DATABASE_URL"] = app_url
     env.setdefault("SECRET_KEY", "check-pg-schema-secret")

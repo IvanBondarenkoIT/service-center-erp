@@ -112,6 +112,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     secret_key: str = DEFAULT_SECRET_KEY
     database_url: str = LOCAL_DATABASE_URL
+    db_schema: str = ""
     session_cookie_name: str = "scerp_session"
     session_cookie_secure: bool = False
     session_max_age: int = 60 * 60 * 12
