@@ -16,6 +16,13 @@ _RAILWAY_MISSING_DB = (
     "then redeploy. Do not copy a local localhost:5433 URL into Railway variables."
 )
 
+DEFAULT_SECRET_KEY = "change-me-in-production"
+DEFAULT_SEED_PASSWORDS = {
+    "admin": "admin123",
+    "mechanic": "mechanic123",
+    "accountant": "accountant123",
+}
+
 DEFAULT_SEED_USERS = (
     "admin:admin::Администратор|"
     "accountant:accountant::Бухгалтер|"
@@ -102,10 +109,16 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "Service Center ERP"
-    secret_key: str = "change-me-in-production"
+    app_env: str = "development"
+    secret_key: str = DEFAULT_SECRET_KEY
     database_url: str = LOCAL_DATABASE_URL
     session_cookie_name: str = "scerp_session"
+    session_cookie_secure: bool = False
     session_max_age: int = 60 * 60 * 12
+
+    @property
+    def is_production(self) -> bool:
+        return self.app_env.strip().lower() == "production"
 
     @field_validator("database_url", mode="before")
     @classmethod
@@ -126,13 +139,38 @@ class Settings(BaseSettings):
     erp_clients_batch_size: int = 500
     erp_clients_max_batches: int = 40
 
-    seed_admin_password: str = "admin123"
-    seed_mechanic_password: str = "mechanic123"
-    seed_accountant_password: str = "accountant123"
+    seed_admin_password: str = DEFAULT_SEED_PASSWORDS["admin"]
+    seed_mechanic_password: str = DEFAULT_SEED_PASSWORDS["mechanic"]
+    seed_accountant_password: str = DEFAULT_SEED_PASSWORDS["accountant"]
     seed_users: str = DEFAULT_SEED_USERS
 
     # Placeholder serial prefix for Excel rows without machine serial
     import_placeholder_serial_prefix: str = "NEED-SERIAL-"
+
+
+def validate_production_settings(settings: Settings) -> None:
+    """Refuse to start in production with default secrets or seed passwords."""
+    if not settings.is_production:
+        return
+    from app.services.seed import parse_seed_users, resolve_seed_password
+
+    problems: list[str] = []
+    key = settings.secret_key or ""
+    if key == DEFAULT_SECRET_KEY or len(key) < 32:
+        problems.append("SECRET_KEY is default or shorter than 32 characters")
+    defaults = set(DEFAULT_SEED_PASSWORDS.values())
+    weak = [
+        spec.login
+        for spec in parse_seed_users(settings.seed_users)
+        if resolve_seed_password(spec.login, spec.role, settings) in defaults
+    ]
+    if weak:
+        problems.append(
+            "default seed password for: " + ", ".join(weak)
+            + " (set SEED_*_PASSWORD or SEED_PASSWORD_<LOGIN>)"
+        )
+    if problems:
+        raise RuntimeError("Unsafe production settings: " + "; ".join(problems))
 
 
 @lru_cache

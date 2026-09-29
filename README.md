@@ -106,7 +106,31 @@ python scripts/sync_erp_catalog.py --mode full
 
 Данные хранятся в локальной таблице `erp_goods_cache`; UI **не** ходит в Firebird при каждом клике.
 
-## Railway (demo)
+## Продакшен
+
+Прод: **https://service.dimkava.ge** — альт-сервер `85.114.224.45` (Debian, Docker) за Caddy.
+Архитектура сервера: `D:\CursorProjects\ssh-alternative-server-connection\docs\ARCHITECTURE-ALT.md`.
+Подробности: [`deploy/README.md`](deploy/README.md).
+
+- **База:** общий Postgres `pg-core`, база `granit`, роль и схема `scerp` (`search_path = scerp, core`).
+  Таблицы приложения — в `scerp`; `core` (данные Granit, ночной ETL) — только чтение; в `public` ничего не создаётся.
+  Проверка на Postgres: `PG_ADMIN_URL=postgresql://postgres:<pwd>@localhost:5432/granit python scripts/check_pg_schema.py --reset`.
+- **Компоуз:** [`deploy/docker-compose.prod.yml`](deploy/docker-compose.prod.yml) — только приложение, образ из GHCR,
+  сети `pgnet` + `edge`, на хосте `127.0.0.1:8090` для health-проверки.
+- **CI/CD:** [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml). PR и push → pytest + проверка схемы на Postgres;
+  push в `main` → образ `ghcr.io/ivanbondarenkoit/service-center-erp:main` и `:sha-xxxxxxx`.
+  Сервер раз в 5 минут делает `docker compose pull` и перезапускает контейнер, если образ изменился
+  (с проверкой `/health` и автооткатом) — выкладка не дольше ~5 минут после push.
+- **Откат вручную:** `IMAGE_TAG=sha-xxxxxxx` в `.env` на сервере.
+- **Схема БД:** только обратно совместимые изменения (добавить таблицу/колонку; не переименовывать и не удалять
+  в одном релизе). Миграции (`create_all` + `ensure_schema`) идут при старте контейнера.
+- **Безопасность:** `APP_ENV=production` запрещает старт с дефолтным `SECRET_KEY` и дефолтными паролями seed;
+  `SESSION_COOKIE_SECURE=true` за HTTPS. Uvicorn запущен с `--proxy-headers`.
+- **Деплой** запускает хаб: `python scripts/deploy_app.py service-center-erp` в `ssh-alternative-server-connection`.
+
+## Railway (только демо)
+
+Прод — на альт-сервере (см. выше); Railway оставлен как демо-стенд.
 
 Чеклист: [`docs/DEPLOY_RAILWAY.md`](docs/DEPLOY_RAILWAY.md). Корень деплоя — **этот** репозиторий, не `apps/service-center-erp`.
 
@@ -118,15 +142,6 @@ python scripts/sync_erp_catalog.py --mode full
 
 `PROXY_API_*` на демо можно не задавать.
 
-## Production (Docker на сервере)
-
-```powershell
-copy .env.example .env   # сменить SECRET_KEY и пароли
-docker compose -f deploy/docker-compose.prod.yml --env-file .env up -d --build
-```
-
-Бэкап volume `scerp_prod_pgdata` — обязателен.
-
 ## Структура
 
 ```
@@ -134,8 +149,9 @@ app/           # FastAPI, models, routers, services, i18n
 templates/     # Jinja UI
 static/        # CSS/JS
 scripts/       # seed, import_excel, import_cash_xlsx, sync_erp_catalog
-docs/          # DEPLOY_RAILWAY.md
-deploy/        # prod compose
+docs/          # DEPLOY_RAILWAY.md (демо)
+deploy/        # prod compose для альт-сервера (pg-core, GHCR)
+.github/       # CI/CD
 alembic/       # миграции
 ```
 

@@ -53,12 +53,14 @@ def login_submit(
         token,
         httponly=True,
         samesite="lax",
+        secure=settings.session_cookie_secure,
         max_age=settings.session_max_age,
     )
     redirect.set_cookie(
         LOCALE_COOKIE,
         user.locale or "ru",
         samesite="lax",
+        secure=settings.session_cookie_secure,
         max_age=settings.session_max_age,
     )
     return redirect
@@ -69,7 +71,12 @@ def login_submit(
 def logout():
     settings = get_settings()
     redirect = RedirectResponse("/login", status_code=303)
-    redirect.delete_cookie(settings.session_cookie_name)
+    redirect.delete_cookie(
+        settings.session_cookie_name,
+        httponly=True,
+        samesite="lax",
+        secure=settings.session_cookie_secure,
+    )
     return redirect
 
 
@@ -92,6 +99,7 @@ def set_locale(
         LOCALE_COOKIE,
         loc,
         samesite="lax",
+        secure=settings.session_cookie_secure,
         max_age=settings.session_max_age,
     )
     return redirect

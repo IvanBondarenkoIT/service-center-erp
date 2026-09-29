@@ -1,4 +1,8 @@
-# Деплой на Railway
+# Деплой на Railway (только демо)
+
+> **Railway — только демо-стенд.** Продакшен работает на альт-сервере (`https://service.dimkava.ge`,
+> pg-core, схема `scerp`, CI/CD через GHCR) — см. раздел «Продакшен» в [README](../README.md)
+> и [`deploy/README.md`](../deploy/README.md).
 
 Образец: [stock-safety-monitor](https://github.com/IvanBondarenkoIT/stock-safety-monitor) → Railway.  
 Отличия: это **web** (uvicorn), не cron; нужен **PostgreSQL**.

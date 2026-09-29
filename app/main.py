@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.config import get_settings
+from app.config import get_settings, validate_production_settings
 from app.database import Base, SessionLocal, engine
 from app.deps import AccountantOnlyCash, NotAuthenticated
 from app.routers import auth, cash, dictionaries, orders, reports
@@ -43,6 +43,7 @@ app.include_router(cash.router)
 
 @app.on_event("startup")
 def on_startup() -> None:
+    validate_production_settings(settings)
     Base.metadata.create_all(bind=engine)
     ensure_schema()
     db = SessionLocal()
