@@ -92,6 +92,7 @@ class IncomeRow:
     card: Decimal
     assignee: str
     note: str
+    transfer: Decimal = ZERO
 
 
 @dataclass
@@ -112,6 +113,7 @@ class CashReport:
     opening: Decimal = ZERO
     cash_in: Decimal = ZERO
     card_in: Decimal = ZERO
+    transfer_in: Decimal = ZERO
     expense: Decimal = ZERO
     collection: Decimal = ZERO
     income_rows: list[IncomeRow] = field(default_factory=list)
@@ -205,22 +207,27 @@ def build_cash_report(
             cash_date = order.order_date
         cash = ZERO
         card = ZERO
+        transfer = ZERO
         for line in order.lines:
             amt = money(line.amount_work) + money(line.amount_parts)
             if line.payment_type == PaymentType.cash:
                 cash += amt
             elif line.payment_type == PaymentType.card:
                 card += amt
-        if cash == ZERO and card == ZERO:
+            elif line.payment_type == PaymentType.transfer:
+                transfer += amt
+        if cash == ZERO and card == ZERO and transfer == ZERO:
             continue
         report.cash_in += cash
         report.card_in += card
+        report.transfer_in += transfer
         report.income_rows.append(
             IncomeRow(
                 order_id=order.id,
                 order_date=cash_date,
                 cash=money(cash),
                 card=money(card),
+                transfer=money(transfer),
                 assignee=(order.assignee.full_name or order.assignee.login)
                 if order.assignee
                 else "",
@@ -229,6 +236,7 @@ def build_cash_report(
         )
     report.cash_in = money(report.cash_in)
     report.card_in = money(report.card_in)
+    report.transfer_in = money(report.transfer_in)
 
     entries = list(
         db.scalars(
@@ -294,7 +302,9 @@ def cash_report_xlsx(report: CashReport) -> bytes:
     ws["B6"] = float(report.collection)
     ws["A7"] = "Closing"
     ws["B7"] = float(report.closing)
-    ws["A8"] = "opening + cash - expense - collection (terminal not in till)"
+    ws["A8"] = "opening + cash - expense - collection (terminal and transfer not in till)"
+    ws["A9"] = "Transfer"
+    ws["B9"] = float(report.transfer_in)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

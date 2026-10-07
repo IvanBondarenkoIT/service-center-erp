@@ -42,6 +42,7 @@
   data-opening="{{ '%.2f'|format(report.opening) }}"
   data-cash-in="{{ '%.2f'|format(report.cash_in) }}"
   data-card-in="{{ '%.2f'|format(report.card_in) }}"
+  data-transfer-in="{{ '%.2f'|format(report.transfer_in) }}"
   data-expense="{{ '%.2f'|format(report.expense) }}"
   data-collection="{{ '%.2f'|format(report.collection) }}"
   data-closing="{{ '%.2f'|format(report.closing) }}">
@@ -57,6 +58,10 @@
     <span class="label-caps">{{ t('cash.card_in') }}</span>
     <span class="order-total">{{ '%.2f'|format(report.card_in) }} {{ t('orders.currency') }}</span>
   </div>
+  <div class="kpi">
+    <span class="label-caps">{{ t('cash.transfer_in') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.transfer_in) }} {{ t('orders.currency') }}</span>
+  </div>
   <div class="kpi kpi-warn">
     <span class="label-caps">{{ t('cash.outflow') }}</span>
     <span class="order-total">−{{ '%.2f'|format(report.outflow) }} {{ t('orders.currency') }}</span>
@@ -71,7 +76,7 @@
 <section class="card flush">
   <div class="section-head">
     <h2>{{ t('cash.income') }}</h2>
-    <span class="order-total">{{ '%.2f'|format(report.cash_in) }} / {{ '%.2f'|format(report.card_in) }} {{ t('orders.currency') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.cash_in) }} / {{ '%.2f'|format(report.card_in) }} / {{ '%.2f'|format(report.transfer_in) }} {{ t('orders.currency') }}</span>
   </div>
   <table class="data">
     <thead>
@@ -79,6 +84,7 @@
         <th>{{ t('cash.date') }}</th>
         <th>{{ t('cash.cash_in') }}</th>
         <th>{{ t('cash.card_in') }}</th>
+        <th>{{ t('cash.transfer_in') }}</th>
         <th>{{ t('cash.basis') }}</th>
       </tr>
     </thead>
@@ -88,6 +94,7 @@
         <td class="order-sn">{{ row.order_date.strftime('%d.%m.%Y') }}</td>
         <td class="order-sn">{{ '%.2f'|format(row.cash) }}</td>
         <td class="order-sn">{{ '%.2f'|format(row.card) }}</td>
+        <td class="order-sn">{{ '%.2f'|format(row.transfer) }}</td>
         <td>
           {% if can_edit %}
           <a href="/orders/{{ row.order_id }}">{{ t('cash.order') }} #{{ row.order_id }}</a>
@@ -99,7 +106,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="muted">{{ t('cash.empty') }}</td></tr>
+      <tr><td colspan="5" class="muted">{{ t('cash.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

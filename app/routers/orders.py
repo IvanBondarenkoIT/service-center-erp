@@ -37,7 +37,7 @@ WORKFLOW_STATUSES = (
     OrderStatus.waiting_part,
     OrderStatus.ready,
 )
-PAY_METHODS = (PaymentType.cash, PaymentType.card)
+PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer)
 FORM_LINE_TYPES = (LineType.work, LineType.part, LineType.diagnostic)
 
 

@@ -57,6 +57,10 @@ def _map_payment(raw: Any) -> PaymentType:
         "rasxod": PaymentType.expense,
         "perechisleniye": PaymentType.transfer,
         "perechislenie": PaymentType.transfer,
+        "perevod": PaymentType.transfer,
+        "transfer": PaymentType.transfer,
+        "перевод": PaymentType.transfer,
+        "перечисление": PaymentType.transfer,
     }
     return mapping.get(text, PaymentType.cash)
 
