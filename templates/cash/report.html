@@ -58,8 +58,8 @@
     <span class="order-total">{% if report.outflow %}−{% endif %}{{ '%.2f'|format(report.outflow) }} {{ t('orders.currency') }}</span>
   </div>
   {% if report.reconcile_rows %}
-  <div class="kpi {% if report.reconcile < 0 %}kpi-warn{% endif %}">
-    <span class="label-caps">{{ t('cash.reconcile') }}</span>
+  <div class="kpi {% if report.reconcile < 0 and not report.has_start %}kpi-warn{% endif %}">
+    <span class="label-caps">{{ t('cash.start_or_reconcile') if report.has_start else t('cash.reconcile') }}</span>
     <span class="order-total">{% if report.reconcile > 0 %}+{% endif %}{{ '%.2f'|format(report.reconcile) }} {{ t('orders.currency') }}</span>
   </div>
   {% endif %}
@@ -73,7 +73,7 @@
 {% if report.reconcile_rows %}
 <section class="card flush">
   <div class="section-head">
-    <h2>{{ t('cash.reconcile') }}</h2>
+    <h2>{{ t('cash.start_or_reconcile') if report.has_start else t('cash.reconcile') }}</h2>
     <span class="order-total">{% if report.reconcile > 0 %}+{% endif %}{{ '%.2f'|format(report.reconcile) }} {{ t('orders.currency') }}</span>
   </div>
   <table class="data">
@@ -84,20 +84,28 @@
         <th>{{ t('cash.fact') }}</th>
         <th>{{ t('cash.computed') }}</th>
         <th>{{ t('cash.difference') }}</th>
+        {% if user.role.value == 'admin' %}<th></th>{% endif %}
       </tr>
     </thead>
     <tbody>
       {% for r in report.reconcile_rows %}
-      <tr data-reconcile-fact="{{ '%.2f'|format(r.fact) }}" data-reconcile-computed="{{ '%.2f'|format(r.computed) }}" data-reconcile-diff="{{ '%.2f'|format(r.diff) }}">
+      <tr data-reconcile-fact="{{ '%.2f'|format(r.fact) }}" data-reconcile-computed="{{ '%.2f'|format(r.computed) }}" data-reconcile-diff="{{ '%.2f'|format(r.diff) }}"{% if r.is_start %} data-reconcile-start="1"{% endif %}>
         <td class="order-sn">{{ r.day.strftime('%d.%m.%Y') }}</td>
-        <td>{{ r.center_name }}</td>
+        <td>{{ r.center_name }}{% if r.is_start %}<div class="label-caps text-ok">{{ t('cash.start') }}</div>{% endif %}</td>
         <td class="order-sn">{{ '%.2f'|format(r.fact) }}</td>
         <td class="order-sn">{{ '%.2f'|format(r.computed) }}</td>
+        {% if r.is_start %}
+        <td class="muted">{{ t('cash.before_start') }}: {{ '%.2f'|format(r.computed) }}</td>
+        {% else %}
         <td class="{% if r.diff < 0 %}text-danger{% elif r.diff > 0 %}text-ok{% endif %}">
           {% if r.diff == 0 %}{{ t('cash.match') }}
           {% elif r.diff > 0 %}{{ t('cash.surplus') }} +{{ '%.2f'|format(r.diff) }}
           {% else %}{{ t('cash.shortage') }} {{ '%.2f'|format(r.diff) }}{% endif %}
         </td>
+        {% endif %}
+        {% if user.role.value == 'admin' %}
+        <td class="no-print"><a href="/cash/openings/{{ r.opening_id }}/edit">{{ t('admin.edit') }}</a></td>
+        {% endif %}
       </tr>
       {% endfor %}
     </tbody>

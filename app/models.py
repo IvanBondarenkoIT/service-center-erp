@@ -308,6 +308,7 @@ class CashOpening(Base):
     service_center_id: Mapped[int] = mapped_column(ForeignKey("service_centers.id"), nullable=False)
     as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    is_start: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     service_center: Mapped[ServiceCenter] = relationship(back_populates="cash_openings")

@@ -121,7 +121,12 @@
         <input type="number" step="0.01" name="amount" class="input-mono input-amount" required placeholder="0.00" />
       </div>
     </div>
+    <label class="check-row">
+      <input type="checkbox" name="is_start" value="1" />
+      {{ t('cash.start_hint') }}
+    </label>
     <button class="btn btn-secondary" type="submit">{{ t('admin.opening_save') }}</button>
+    <p class="muted">{{ t('cash.workflow_hint') }}</p>
   </form>
   <div class="order-list">
     {% for o in openings %}
@@ -130,10 +135,12 @@
         <div>
           <span class="order-date">{{ o.as_of_date.strftime('%d.%m.%Y') }}</span>
           <span class="order-client">{{ o.service_center.name }}</span>
+          {% if o.is_start %}<span class="label-caps text-ok">{{ t('cash.start') }}</span>{% endif %}
         </div>
         <span class="order-total">{{ '%.2f'|format(o.amount) }} {{ t('orders.currency') }}</span>
       </div>
       <div class="row-actions">
+        <a class="btn btn-ghost" href="/cash/openings/{{ o.id }}/edit">{{ t('admin.edit') }}</a>
         <form method="post" action="/cash/openings/{{ o.id }}/delete" class="inline-form" onsubmit="return confirm('{{ t('admin.delete_confirm') }}')">
           <button class="btn btn-ghost" type="submit">{{ t('admin.delete') }}</button>
         </form>

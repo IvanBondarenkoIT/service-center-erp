@@ -51,6 +51,7 @@ def ensure_schema() -> None:
     erp_cols = _column_names(insp, "erp_goods_cache")
     user_cols = _column_names(insp, "users")
     order_cols = _column_names(insp, "service_orders")
+    opening_cols = _column_names(insp, "cash_openings")
 
     with engine.begin() as conn:
         if "erp_goods_cache" in tables:
@@ -72,6 +73,18 @@ def ensure_schema() -> None:
                     )
             if "last_seen_at" not in erp_cols:
                 _try_alter(conn, "ALTER TABLE erp_goods_cache ADD COLUMN last_seen_at TIMESTAMP")
+
+        if "cash_openings" in tables and "is_start" not in opening_cols:
+            if dialect == "sqlite":
+                _try_alter(
+                    conn,
+                    "ALTER TABLE cash_openings ADD COLUMN is_start INTEGER NOT NULL DEFAULT 0",
+                )
+            else:
+                _try_alter(
+                    conn,
+                    "ALTER TABLE cash_openings ADD COLUMN is_start BOOLEAN NOT NULL DEFAULT FALSE",
+                )
 
         if "users" in tables and "locale" not in user_cols:
             _try_alter(

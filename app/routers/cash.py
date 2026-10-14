@@ -362,6 +362,7 @@ def cash_opening_set(
     as_of_date: str = Form(...),
     amount: str = Form(...),
     service_center_id: int = Form(...),
+    is_start: str = Form(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ):
@@ -372,27 +373,106 @@ def cash_opening_set(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="bad_date") from exc
     value = _parse_amount(amount)
+    start = _checked(is_start)
     opening = db.scalar(
         select(CashOpening).where(
             CashOpening.service_center_id == service_center_id,
             CashOpening.as_of_date == as_of,
         )
     )
-    old = opening.amount if opening else None
+    before = _opening_snapshot(opening) if opening else None
     if opening:
         opening.amount = value
+        opening.is_start = start
     else:
-        opening = CashOpening(service_center_id=service_center_id, as_of_date=as_of, amount=value)
+        opening = CashOpening(
+            service_center_id=service_center_id, as_of_date=as_of, amount=value, is_start=start
+        )
         db.add(opening)
     db.flush()
+    after = _opening_snapshot(opening)
     log_action(
         db,
         user,
         "set",
         "cash_opening",
         opening.id,
-        f"center {service_center_id}; {as_of.isoformat()}; {old if old is not None else '—'} → {value}",
+        diff_text(before, after) if before else "; ".join(f"{k}: {v}" for k, v in after.items()),
     )
+    db.commit()
+    return RedirectResponse("/cash/entries", status_code=303)
+
+
+def _checked(raw: str) -> bool:
+    return raw in {"1", "on", "true"}
+
+
+def _opening_snapshot(opening: CashOpening) -> dict:
+    return {
+        "center": opening.service_center_id,
+        "date": opening.as_of_date.isoformat(),
+        "amount": opening.amount,
+        "start": opening.is_start,
+    }
+
+
+@router.get("/cash/openings/{opening_id}/edit", response_class=HTMLResponse)
+def cash_opening_edit_page(
+    opening_id: int,
+    request: Request,
+    error: str = Query(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    opening = db.get(CashOpening, opening_id)
+    if not opening:
+        raise HTTPException(404)
+    centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
+    return templates.TemplateResponse(
+        request,
+        "cash/opening_edit.html",
+        {"user": user, "opening": opening, "centers": centers, "error": error},
+    )
+
+
+@router.post("/cash/openings/{opening_id}/edit")
+def cash_opening_update(
+    opening_id: int,
+    as_of_date: str = Form(...),
+    amount: str = Form(...),
+    service_center_id: int = Form(...),
+    is_start: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    opening = db.get(CashOpening, opening_id)
+    if not opening:
+        raise HTTPException(404)
+    if not db.get(ServiceCenter, service_center_id):
+        raise HTTPException(status_code=400, detail="no_center")
+    try:
+        as_of = date.fromisoformat(as_of_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="bad_date") from exc
+    clash = db.scalar(
+        select(CashOpening).where(
+            CashOpening.service_center_id == service_center_id,
+            CashOpening.as_of_date == as_of,
+            CashOpening.id != opening.id,
+        )
+    )
+    if clash:
+        return RedirectResponse(
+            f"/cash/openings/{opening.id}/edit?error=admin.err_opening_taken", status_code=303
+        )
+    before = _opening_snapshot(opening)
+    opening.service_center_id = service_center_id
+    opening.as_of_date = as_of
+    opening.amount = _parse_amount(amount)
+    opening.is_start = _checked(is_start)
+    details = diff_text(before, _opening_snapshot(opening))
+    if details:
+        log_action(db, user, "edit", "cash_opening", opening.id, details)
     db.commit()
     return RedirectResponse("/cash/entries", status_code=303)
 
@@ -406,7 +486,7 @@ def cash_opening_delete(
     opening = db.get(CashOpening, opening_id)
     if not opening:
         raise HTTPException(404)
-    details = f"center {opening.service_center_id}; {opening.as_of_date.isoformat()}; {opening.amount}"
+    details = "; ".join(f"{k}: {v}" for k, v in _opening_snapshot(opening).items())
     db.delete(opening)
     log_action(db, user, "delete", "cash_opening", opening_id, details)
     db.commit()

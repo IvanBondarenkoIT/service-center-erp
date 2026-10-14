@@ -115,11 +115,13 @@ class OutflowRow:
 
 @dataclass
 class ReconcileRow:
+    opening_id: int
     day: date
     center_name: str
     fact: Decimal
     computed: Decimal
     diff: Decimal
+    is_start: bool = False
 
 
 @dataclass
@@ -147,6 +149,10 @@ class CashReport:
     @property
     def reconcile(self) -> Decimal:
         return money(sum((r.diff for r in self.reconcile_rows), ZERO))
+
+    @property
+    def has_start(self) -> bool:
+        return any(r.is_start for r in self.reconcile_rows)
 
     @property
     def closing(self) -> Decimal:
@@ -225,23 +231,27 @@ def _morning_balance(
     snapshots: list[CashOpening],
     moves: list[tuple[date, Decimal]],
     day: date,
-    include_same_day: bool,
 ) -> Decimal:
-    """Cash on the morning of `day`: last snapshot + movements since it."""
+    """Cash on the morning of `day`: last snapshot on or before it + movements since.
+
+    Before the first "start of accounting" snapshot the till is not tracked (0).
+    """
     base = None
     for snap in snapshots:
-        if snap.as_of_date < day or (include_same_day and snap.as_of_date == day):
+        if snap.as_of_date <= day:
             base = snap
-    if base is None:
-        return _sum_moves(moves, None, day)
-    return money(money(base.amount) + _sum_moves(moves, base.as_of_date, day))
+    if base is not None:
+        return money(money(base.amount) + _sum_moves(moves, base.as_of_date, day))
+    if any(s.is_start for s in snapshots):
+        return ZERO
+    return _sum_moves(moves, None, day)
 
 
-def _snapshots(db: Session, center_id: int, until: date) -> list[CashOpening]:
+def _snapshots(db: Session, center_id: int) -> list[CashOpening]:
     return list(
         db.scalars(
             select(CashOpening)
-            .where(CashOpening.service_center_id == center_id, CashOpening.as_of_date <= until)
+            .where(CashOpening.service_center_id == center_id)
             .order_by(CashOpening.as_of_date)
         )
     )
@@ -251,7 +261,7 @@ def opening_balance(db: Session, center_ids: list[int], as_of: date) -> Decimal:
     total = ZERO
     for cid in center_ids:
         moves = _till_moves(db, cid, as_of)
-        total += _morning_balance(_snapshots(db, cid, as_of), moves, as_of, True)
+        total += _morning_balance(_snapshots(db, cid), moves, as_of)
     return money(total)
 
 
@@ -264,31 +274,35 @@ def lock_date(db: Session, center_id: int | None) -> date | None:
     )
 
 
-def _reconcile_rows(
-    db: Session, center_ids: list[int], date_from: date, date_to: date
-) -> list[ReconcileRow]:
+def _center_till(
+    db: Session, center_id: int, date_from: date, date_to: date
+) -> tuple[Decimal, list[ReconcileRow]]:
+    """Opening of the period and reconciliation rows inside it, as one running chain."""
+    snaps = _snapshots(db, center_id)
+    moves = _till_moves(db, center_id, date_to)
+    opening = _morning_balance(snaps, moves, date_from)
+    inside = [s for s in snaps if date_from < s.as_of_date <= date_to]
     rows: list[ReconcileRow] = []
-    for cid in center_ids:
-        snaps = _snapshots(db, cid, date_to)
-        inside = [s for s in snaps if date_from < s.as_of_date <= date_to]
-        if not inside:
-            continue
-        moves = _till_moves(db, cid, date_to)
-        center = db.get(ServiceCenter, cid)
-        for snap in inside:
-            computed = _morning_balance(snaps, moves, snap.as_of_date, False)
-            fact = money(snap.amount)
-            rows.append(
-                ReconcileRow(
-                    day=snap.as_of_date,
-                    center_name=center.name if center else "",
-                    fact=fact,
-                    computed=computed,
-                    diff=money(fact - computed),
-                )
+    if not inside:
+        return opening, rows
+    center = db.get(ServiceCenter, center_id)
+    bal, point = opening, date_from
+    for snap in inside:
+        computed = money(bal + _sum_moves(moves, point, snap.as_of_date))
+        fact = money(snap.amount)
+        rows.append(
+            ReconcileRow(
+                opening_id=snap.id,
+                day=snap.as_of_date,
+                center_name=center.name if center else "",
+                fact=fact,
+                computed=computed,
+                diff=money(fact - computed),
+                is_start=snap.is_start,
             )
-    rows.sort(key=lambda r: (r.day, r.center_name))
-    return rows
+        )
+        bal, point = fact, snap.as_of_date
+    return opening, rows
 
 
 def build_cash_report(
@@ -302,11 +316,16 @@ def build_cash_report(
         date_from=date_from,
         date_to=date_to,
         center_id=center_id,
-        opening=opening_balance(db, ids, date_from),
     )
     if not ids:
         return report
-    report.reconcile_rows = _reconcile_rows(db, ids, date_from, date_to)
+    opening = ZERO
+    for cid in ids:
+        center_opening, rows = _center_till(db, cid, date_from, date_to)
+        opening += center_opening
+        report.reconcile_rows.extend(rows)
+    report.opening = money(opening)
+    report.reconcile_rows.sort(key=lambda r: (r.day, r.center_name))
 
     orders = list(
         db.scalars(
@@ -452,7 +471,9 @@ def cash_report_xlsx(report: CashReport) -> bytes:
         ws.cell(row_no, 1, "Reconcile")
         ws.cell(row_no, 2, float(report.reconcile))
         row_no += 1
-        for col, title in enumerate(("Date", "Center", "Fact", "Computed", "Difference"), 1):
+        for col, title in enumerate(
+            ("Date", "Center", "Fact", "Computed", "Difference", "Start"), 1
+        ):
             ws.cell(row_no, col, title)
         for r in report.reconcile_rows:
             row_no += 1
@@ -461,6 +482,7 @@ def cash_report_xlsx(report: CashReport) -> bytes:
             ws.cell(row_no, 3, float(r.fact))
             ws.cell(row_no, 4, float(r.computed))
             ws.cell(row_no, 5, float(r.diff))
+            ws.cell(row_no, 6, "yes" if r.is_start else "")
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

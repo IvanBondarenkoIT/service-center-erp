@@ -108,10 +108,17 @@ def _entry(center_id: int, day: date, amount: str, kind=CashEntryKind.expense) -
         db.close()
 
 
-def _snapshot(center_id: int, day: date, amount: str) -> None:
+def _snapshot(center_id: int, day: date, amount: str, is_start: bool = False) -> None:
     db = SessionLocal()
     try:
-        db.add(CashOpening(service_center_id=center_id, as_of_date=day, amount=Decimal(amount)))
+        db.add(
+            CashOpening(
+                service_center_id=center_id,
+                as_of_date=day,
+                amount=Decimal(amount),
+                is_start=is_start,
+            )
+        )
         db.commit()
     finally:
         db.close()
@@ -265,3 +272,109 @@ def test_no_negative_zero_outflow(client) -> None:
         "/cash", params={"date_from": "2001-01-01", "date_to": "2001-01-31", "center_id": cid}
     )
     assert "−0.00" not in page.text
+
+
+def test_start_of_accounting_ignores_history(client) -> None:
+    cid, _ = _new_center()
+    _cash_order(cid, date(2026, 9, 10), date(2026, 9, 10), "5000.00")
+    _cash_order(cid, date(2026, 10, 3), date(2026, 10, 3), "100.00")
+    _snapshot(cid, date(2026, 10, 13), "240.00", is_start=True)
+    _cash_order(cid, date(2026, 10, 13), date(2026, 10, 13), "50.00")
+
+    r = _report(cid, date(2026, 10, 1), date(2026, 10, 14))
+    assert r.opening == Decimal("0.00")
+    assert r.cash_in == Decimal("150.00")
+    assert r.val == Decimal("150.00")
+    assert len(r.reconcile_rows) == 1
+    row = r.reconcile_rows[0]
+    assert row.is_start
+    assert row.computed == Decimal("100.00")
+    assert r.closing == Decimal("290.00")
+    assert r.has_start
+
+    nov = _report(cid, date(2026, 11, 1), date(2026, 11, 30))
+    assert nov.opening == Decimal("290.00")
+
+    login(client, "admin", settings.seed_admin_password)
+    page = client.get(
+        "/cash", params={"date_from": "2026-10-01", "date_to": "2026-10-14", "center_id": cid}
+    )
+    assert 'data-reconcile-start="1"' in page.text
+    assert "Старт учёта" in page.text
+    assert "Недостача" not in page.text
+    assert f"/cash/openings/{row.opening_id}/edit" in page.text
+
+
+def test_regular_reconcile_after_start() -> None:
+    cid, _ = _new_center()
+    _cash_order(cid, date(2026, 9, 10), date(2026, 9, 10), "5000.00")
+    _snapshot(cid, date(2026, 10, 13), "240.00", is_start=True)
+    _cash_order(cid, date(2026, 10, 15), date(2026, 10, 15), "50.00")
+    _snapshot(cid, date(2026, 10, 20), "280.00")
+
+    r = _report(cid, date(2026, 10, 1), date(2026, 10, 31))
+    start_row, regular = r.reconcile_rows
+    assert start_row.is_start and not regular.is_start
+    assert regular.computed == Decimal("290.00")
+    assert regular.diff == Decimal("-10.00")
+    assert r.closing == Decimal("280.00")
+
+
+def test_edit_opening_sets_start_and_logs(client) -> None:
+    cid, mech = _new_center()
+    _cash_order(cid, date(2026, 9, 10), date(2026, 9, 10), "700.00")
+    login(client, "admin", settings.seed_admin_password)
+    client.post(
+        "/cash/openings",
+        data={"service_center_id": str(cid), "as_of_date": "2026-10-13", "amount": "240.00"},
+        follow_redirects=False,
+    )
+    r = _report(cid, date(2026, 10, 1), date(2026, 10, 14))
+    assert r.reconcile_rows[0].diff == Decimal("-460.00")
+    opening_id = r.reconcile_rows[0].opening_id
+
+    page = client.get(f"/cash/openings/{opening_id}/edit")
+    assert page.status_code == 200
+    saved = client.post(
+        f"/cash/openings/{opening_id}/edit",
+        data={
+            "service_center_id": str(cid),
+            "as_of_date": "2026-10-13",
+            "amount": "250.00",
+            "is_start": "1",
+        },
+        follow_redirects=False,
+    )
+    assert saved.headers["location"] == "/cash/entries"
+    r = _report(cid, date(2026, 10, 1), date(2026, 10, 14))
+    assert r.opening == Decimal("0.00")
+    assert r.reconcile_rows[0].is_start
+    assert r.closing == Decimal("250.00")
+    db = SessionLocal()
+    try:
+        log = db.scalar(
+            select(AuditLog).where(
+                AuditLog.entity == "cash_opening",
+                AuditLog.entity_id == opening_id,
+                AuditLog.action == "edit",
+            )
+        )
+        assert log is not None and "start" in log.details
+    finally:
+        db.close()
+
+    client.post(
+        "/cash/openings",
+        data={"service_center_id": str(cid), "as_of_date": "2026-10-20", "amount": "1.00"},
+        follow_redirects=False,
+    )
+    clash = client.post(
+        f"/cash/openings/{opening_id}/edit",
+        data={"service_center_id": str(cid), "as_of_date": "2026-10-20", "amount": "250.00"},
+        follow_redirects=False,
+    )
+    assert "err_opening_taken" in clash.headers["location"]
+
+    client.cookies.clear()
+    login(client, mech, PASSWORD)
+    assert client.get(f"/cash/openings/{opening_id}/edit", follow_redirects=False).status_code == 403
