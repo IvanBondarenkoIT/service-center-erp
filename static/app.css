@@ -509,17 +509,25 @@ table.data .order-total {
   background: var(--surface);
 }
 
-.suggest-box a {
+.suggest-box a,
+.suggest-box .suggest-pick {
   display: block;
+  width: 100%;
   padding: 12px;
+  border: 0;
   border-bottom: 1px solid var(--line);
+  background: transparent;
   color: var(--ink);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
-.suggest-box a:last-child { border-bottom: 0; }
+.suggest-box a:last-child,
+.suggest-box .suggest-pick:last-child { border-bottom: 0; }
 
-.suggest-box a:hover { background: var(--bg); text-decoration: none; }
+.suggest-box a:hover,
+.suggest-box .suggest-pick:hover { background: var(--bg); text-decoration: none; }
 
 .more-list {
   display: flex;

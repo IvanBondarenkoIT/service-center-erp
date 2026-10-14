@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.deps import require_admin
 from app.models import Machine, ServiceCenter, ServiceOrder, User
+from app.services.cash_book import build_cash_report
 from app.templating import templates
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -75,6 +76,7 @@ def reports_home(
 
     centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
     top_reasons = sorted(reason_counts.items(), key=lambda x: -x[1])[:20]
+    cash = build_cash_report(db, d_from, d_to, center_id)
 
     return templates.TemplateResponse(
         request,
@@ -89,6 +91,8 @@ def reports_home(
             "total": total,
             "by_center": sorted(by_center.items()),
             "by_payment": sorted(by_payment.items()),
+            "val_rows": cash.val_rows,
+            "val": cash.val,
             "top_reasons": top_reasons,
             "repeat_machines": machine_counts,
         },

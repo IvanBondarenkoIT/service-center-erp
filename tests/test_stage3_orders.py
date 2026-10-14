@@ -117,7 +117,7 @@ def test_status_change_shows_on_list_card(client) -> None:
     order = _load_order(oid)
     assert order is not None
     assert order.status == OrderStatus.waiting_part
-    listing = client.get("/")
+    listing = client.get("/", params={"status": "all"})
     assert listing.status_code == 200
     assert f'data-status="waiting_part"' in listing.text
     assert serial in listing.text
@@ -153,9 +153,15 @@ def test_issued_status_on_card(client) -> None:
     assert order.status == OrderStatus.issued
     assert order.paid_at is not None
     assert order.lines[0].payment_type == PaymentType.card
-    listing = client.get("/")
+    listing = client.get("/", params={"status": "all"})
     assert 'data-status="issued"' in listing.text
     assert "Выдан" in listing.text
+    default_list = client.get("/")
+    assert serial not in default_list.text
+    assert 'href="/?status=in_progress"' in default_list.text
+    assert default_list.text.rfind('href="/?status=all"') > default_list.text.rfind(
+        'href="/?status=issued"'
+    )
 
 
 def test_mechanic_cannot_access_foreign_order_admin_sees_both(client) -> None:

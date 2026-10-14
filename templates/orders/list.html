@@ -14,16 +14,17 @@
       <input id="search" type="text" name="q" value="{{ q }}" placeholder="{{ t('orders.search_placeholder') }}" />
     </div>
   </div>
-  {% if status %}<input type="hidden" name="status" value="{{ status }}" />{% endif %}
+  <input type="hidden" name="status" value="{{ status }}" />
   <button class="btn btn-secondary" type="submit">{{ t('orders.search') }}</button>
 </form>
 
 <div class="chip-row filter-chips">
-  <a class="chip {% if not status %}active{% endif %}" href="/{% if q %}?q={{ q|urlencode }}{% endif %}">{{ t('orders.filter_all') }}</a>
   {% for s in statuses %}
   <a class="chip {% if status == s.value %}active{% endif %}"
      href="/?status={{ s.value }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{{ t('status.' + s.value) }}</a>
   {% endfor %}
+  <a class="chip {% if status == 'all' %}active{% endif %}"
+     href="/?status=all{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{{ t('orders.filter_all') }}</a>
 </div>
 
 <div class="order-list">

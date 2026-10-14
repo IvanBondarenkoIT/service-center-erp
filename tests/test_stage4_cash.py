@@ -369,8 +369,8 @@ def test_pay_card_is_terminal_not_till(client) -> None:
         )
         rows = [row for row in report.income_rows if row.note == serial]
         assert len(rows) == 1
-        assert rows[0].cash == Decimal("0.00")
-        assert rows[0].card == Decimal("18.50")
+        assert rows[0].payment_type == PaymentType.card
+        assert rows[0].amount == Decimal("18.50")
     finally:
         db.close()
     login(client, "admin", settings.seed_admin_password)
@@ -408,9 +408,8 @@ def test_pay_transfer_is_separate_and_not_in_till(client) -> None:
         report = build_cash_report(db, *period, batumi)
         rows = [row for row in report.income_rows if row.note == serial]
         assert len(rows) == 1
-        assert rows[0].cash == Decimal("0.00")
-        assert rows[0].card == Decimal("0.00")
-        assert rows[0].transfer == Decimal("42.00")
+        assert rows[0].payment_type == PaymentType.transfer
+        assert rows[0].amount == Decimal("42.00")
         assert report.transfer_in >= Decimal("42.00")
         assert report.closing == report.opening + report.cash_in - report.expense - report.collection
     finally:
@@ -422,6 +421,47 @@ def test_pay_transfer_is_separate_and_not_in_till(client) -> None:
     )
     assert "data-transfer-in=" in page.text
     assert serial in page.text
+
+
+def test_pay_promo_counts_in_val_not_till(client) -> None:
+    from app.services.cash_book import build_cash_report
+
+    serial = _serial()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    saved = client.post(
+        "/orders/save",
+        data=_order_payload("mechanic_batumi", serial, "Cash", "25.00", "5.00"),
+        follow_redirects=False,
+    )
+    oid = _order_id(saved.headers["location"])
+    form = client.get(f"/orders/{oid}")
+    assert 'data-value="promo"' in form.text
+    assert "Promo" in form.text
+    assert _pay(client, oid, "promo").status_code == 303
+    _set_paid_at(oid, DAY)
+    batumi = _center_id("batumi")
+    db = SessionLocal()
+    try:
+        order = db.get(ServiceOrder, oid)
+        assert order.lines[0].payment_type == PaymentType.promo
+        period = (date.fromisoformat(PERIOD_FROM), date.fromisoformat(PERIOD_TO))
+        report = build_cash_report(db, *period, batumi)
+        rows = [row for row in report.income_rows if row.note == serial]
+        assert len(rows) == 1
+        assert rows[0].amount == Decimal("30.00")
+        assert report.promo_in >= Decimal("30.00")
+        assert report.val == report.cash_in + report.card_in + report.transfer_in + report.promo_in
+        assert report.closing == report.opening + report.cash_in - report.expense - report.collection
+    finally:
+        db.close()
+    login(client, "admin", settings.seed_admin_password)
+    page = client.get(
+        "/cash",
+        params={"date_from": PERIOD_FROM, "date_to": PERIOD_TO, "center_id": batumi},
+    )
+    assert 'data-val-method="promo"' in page.text
+    assert serial in page.text
+    assert "Акция" in page.text
 
 
 def test_pay_rejects_non_payment_methods(client) -> None:

@@ -47,9 +47,12 @@
     "cash_in": "Cash in",
     "card_in": "Terminal",
     "transfer_in": "Transfer",
+    "promo_in": "Promo",
+    "val": "Gross",
+    "method": "Method",
     "outflow": "Expense + collection",
     "closing": "Closing cash",
-    "formula": "opening + cash − expense − collection (terminal and transfer not in till)",
+    "formula": "opening + cash − expense − collection (terminal, transfer and promo not in till)",
     "period_from": "From",
     "period_to": "To",
     "center": "Service center",
@@ -92,7 +95,8 @@
     "Card": "Card",
     "garanty": "Warranty",
     "rasxod": "Expense",
-    "perechisleniye": "Transfer"
+    "perechisleniye": "Transfer",
+    "promo": "Promo"
   },
   "orders": {
     "title": "Orders",

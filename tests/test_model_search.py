@@ -69,3 +69,6 @@ def test_erp_suggest_endpoint_normalized(client) -> None:
     assert r.status_code == 200
     assert "ECAM 22.110.B" in r.text
     assert "ECAM 22.360" not in r.text
+    assert "onclick" not in r.text
+    assert 'data-erp-id="' in r.text
+    assert 'data-model-name="Delonghi ECAM 22.110.B"' in r.text

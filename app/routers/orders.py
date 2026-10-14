@@ -37,7 +37,7 @@ WORKFLOW_STATUSES = (
     OrderStatus.waiting_part,
     OrderStatus.ready,
 )
-PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer)
+PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer, PaymentType.promo)
 FORM_LINE_TYPES = (LineType.work, LineType.part, LineType.diagnostic)
 
 
@@ -265,12 +265,18 @@ def orders_list(
     user: User = Depends(get_staff_user),
 ):
     stmt = _scoped_orders_query(user)
-    status_filter = status.strip()
-    if status_filter:
+    raw_status = status.strip()
+    if raw_status == "all":
+        status_filter = "all"
+    elif raw_status:
         try:
-            stmt = stmt.where(ServiceOrder.status == OrderStatus(status_filter))
+            status_filter = OrderStatus(raw_status).value
         except ValueError:
-            status_filter = ""
+            status_filter = OrderStatus.in_progress.value
+    else:
+        status_filter = OrderStatus.in_progress.value
+    if status_filter != "all":
+        stmt = stmt.where(ServiceOrder.status == OrderStatus(status_filter))
     orders = list(db.scalars(stmt).unique())
     if q.strip():
         needle = q.strip().lower()

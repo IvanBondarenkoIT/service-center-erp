@@ -49,6 +49,33 @@
   </table>
 </section>
 
+{% set val_labels = {
+  'Cash': 'cash.cash_in',
+  'Card': 'cash.card_in',
+  'perechisleniye': 'cash.transfer_in',
+  'promo': 'cash.promo_in'
+} %}
+<section class="card flush" data-val="{{ '%.2f'|format(val) }}">
+  <div class="section-head">
+    <h2>{{ t('cash.val') }}</h2>
+    <span class="order-total">{{ '%.2f'|format(val) }} {{ t('orders.currency') }}</span>
+  </div>
+  <table class="data">
+    <tbody>
+      {% for name, amount in val_rows %}
+      <tr data-val-method="{{ name }}" data-val-amount="{{ '%.2f'|format(amount) }}">
+        <td>{{ t(val_labels[name]) }}</td>
+        <td class="order-sn">{{ '%.2f'|format(amount) }} {{ t('orders.currency') }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td><strong>{{ t('cash.val') }}</strong></td>
+        <td class="order-total">{{ '%.2f'|format(val) }} {{ t('orders.currency') }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
 <div class="grid-2">
   <section class="card flush">
     <div class="section-head">

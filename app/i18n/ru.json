@@ -47,9 +47,12 @@
     "cash_in": "Приход нал",
     "card_in": "Терминал",
     "transfer_in": "Перевод",
+    "promo_in": "Акция",
+    "val": "Вал",
+    "method": "Способ",
     "outflow": "Расход + инкасация",
     "closing": "Касса на конец",
-    "formula": "начало + касса − расход − инкасация (терминал и перевод не в кассе)",
+    "formula": "начало + касса − расход − инкасация (терминал, перевод и акция не в кассе)",
     "period_from": "Период с",
     "period_to": "Период по",
     "center": "Сервисный центр",
@@ -92,7 +95,8 @@
     "Card": "Card",
     "garanty": "Гарантия",
     "rasxod": "Расход",
-    "perechisleniye": "Transfer"
+    "perechisleniye": "Transfer",
+    "promo": "Promo"
   },
   "orders": {
     "title": "Заказы",

@@ -85,7 +85,7 @@
     </div>
     <div class="field-gap">
       <label for="new_machine_model">{{ t('orders.model') }}</label>
-      <input id="new_machine_model" name="new_machine_model" type="text"
+      <input id="new_machine_model" name="new_machine_model" type="text" autocomplete="off"
         value="{% if order and order.machine %}{{ order.machine.model_name }}{% endif %}"
         hx-get="/dict/erp-suggest"
         hx-trigger="keyup changed delay:300ms"

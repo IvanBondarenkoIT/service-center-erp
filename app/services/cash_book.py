@@ -84,15 +84,23 @@ def money(value: Decimal | int | str | None) -> Decimal:
     return Decimal(str(value or 0)).quantize(CENTS)
 
 
+# Turnover (вал). A new client payment method is one more entry here.
+VAL_METHODS = (
+    PaymentType.cash,
+    PaymentType.card,
+    PaymentType.transfer,
+    PaymentType.promo,
+)
+
+
 @dataclass
 class IncomeRow:
     order_id: int
     order_date: date
-    cash: Decimal
-    card: Decimal
+    payment_type: PaymentType
+    amount: Decimal
     assignee: str
     note: str
-    transfer: Decimal = ZERO
 
 
 @dataclass
@@ -114,8 +122,10 @@ class CashReport:
     cash_in: Decimal = ZERO
     card_in: Decimal = ZERO
     transfer_in: Decimal = ZERO
+    promo_in: Decimal = ZERO
     expense: Decimal = ZERO
     collection: Decimal = ZERO
+    by_method: dict[str, Decimal] = field(default_factory=dict)
     income_rows: list[IncomeRow] = field(default_factory=list)
     expense_rows: list[OutflowRow] = field(default_factory=list)
     collection_rows: list[OutflowRow] = field(default_factory=list)
@@ -127,6 +137,17 @@ class CashReport:
     @property
     def closing(self) -> Decimal:
         return money(self.opening + self.cash_in - self.expense - self.collection)
+
+    @property
+    def val_rows(self) -> list[tuple[str, Decimal]]:
+        return [
+            (method.value, money(self.by_method.get(method.value, ZERO)))
+            for method in VAL_METHODS
+        ]
+
+    @property
+    def val(self) -> Decimal:
+        return money(sum((amount for _, amount in self.val_rows), ZERO))
 
 
 def _center_ids(db: Session, center_id: int | None) -> list[int]:
@@ -205,38 +226,40 @@ def build_cash_report(
         cash_date = _cash_date(order)
         if cash_date < date_from or cash_date > date_to:
             cash_date = order.order_date
-        cash = ZERO
-        card = ZERO
-        transfer = ZERO
+        buckets = {method.value: ZERO for method in VAL_METHODS}
         for line in order.lines:
-            amt = money(line.amount_work) + money(line.amount_parts)
-            if line.payment_type == PaymentType.cash:
-                cash += amt
-            elif line.payment_type == PaymentType.card:
-                card += amt
-            elif line.payment_type == PaymentType.transfer:
-                transfer += amt
-        if cash == ZERO and card == ZERO and transfer == ZERO:
+            if line.payment_type not in VAL_METHODS:
+                continue
+            buckets[line.payment_type.value] += money(line.amount_work) + money(line.amount_parts)
+        if all(amount == ZERO for amount in buckets.values()):
             continue
-        report.cash_in += cash
-        report.card_in += card
-        report.transfer_in += transfer
-        report.income_rows.append(
-            IncomeRow(
-                order_id=order.id,
-                order_date=cash_date,
-                cash=money(cash),
-                card=money(card),
-                transfer=money(transfer),
-                assignee=(order.assignee.full_name or order.assignee.login)
-                if order.assignee
-                else "",
-                note=(order.machine.serial_number if order.machine else "") or f"#{order.id}",
-            )
+        assignee = (
+            (order.assignee.full_name or order.assignee.login) if order.assignee else ""
         )
-    report.cash_in = money(report.cash_in)
-    report.card_in = money(report.card_in)
-    report.transfer_in = money(report.transfer_in)
+        note = (order.machine.serial_number if order.machine else "") or f"#{order.id}"
+        for method in VAL_METHODS:
+            amount = money(buckets[method.value])
+            if amount == ZERO:
+                continue
+            report.by_method[method.value] = money(
+                report.by_method.get(method.value, ZERO) + amount
+            )
+            report.income_rows.append(
+                IncomeRow(
+                    order_id=order.id,
+                    order_date=cash_date,
+                    payment_type=method,
+                    amount=amount,
+                    assignee=assignee,
+                    note=note,
+                )
+            )
+    report.cash_in = money(report.by_method.get(PaymentType.cash.value, ZERO))
+    report.card_in = money(report.by_method.get(PaymentType.card.value, ZERO))
+    report.transfer_in = money(report.by_method.get(PaymentType.transfer.value, ZERO))
+    report.promo_in = money(report.by_method.get(PaymentType.promo.value, ZERO))
+    for method in VAL_METHODS:
+        report.by_method.setdefault(method.value, ZERO)
 
     entries = list(
         db.scalars(
@@ -302,9 +325,26 @@ def cash_report_xlsx(report: CashReport) -> bytes:
     ws["B6"] = float(report.collection)
     ws["A7"] = "Closing"
     ws["B7"] = float(report.closing)
-    ws["A8"] = "opening + cash - expense - collection (terminal and transfer not in till)"
+    ws["A8"] = (
+        "opening + cash - expense - collection (terminal, transfer and promo not in till)"
+    )
     ws["A9"] = "Transfer"
     ws["B9"] = float(report.transfer_in)
+    excel_labels = {
+        PaymentType.cash.value: "Cash",
+        PaymentType.card.value: "Terminal",
+        PaymentType.transfer.value: "Transfer",
+        PaymentType.promo.value: "Promo",
+    }
+    row_no = 11
+    ws.cell(row_no, 1, "Val")
+    row_no += 1
+    for method_value, amount in report.val_rows:
+        ws.cell(row_no, 1, excel_labels.get(method_value, method_value))
+        ws.cell(row_no, 2, float(amount))
+        row_no += 1
+    ws.cell(row_no, 1, "Val total")
+    ws.cell(row_no, 2, float(report.val))
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

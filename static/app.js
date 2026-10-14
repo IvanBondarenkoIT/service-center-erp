@@ -17,7 +17,16 @@ function applyErpModel(erpId, name) {
   const erpInput = document.getElementById("erp_goods_id");
   if (modelInput) modelInput.value = name;
   if (erpInput) erpInput.value = erpId;
+  const box = document.getElementById("erp-model-suggest");
+  if (box) box.replaceChildren();
 }
+
+document.addEventListener("pointerdown", (event) => {
+  const pick = event.target.closest("[data-erp-id]");
+  if (!pick) return;
+  event.preventDefault();
+  applyErpModel(pick.dataset.erpId, pick.dataset.modelName || "");
+});
 
 function syncLineWarranty(card, on) {
   if (!card) return;

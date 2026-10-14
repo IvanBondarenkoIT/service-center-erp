@@ -67,6 +67,7 @@ class PaymentType(str, enum.Enum):
     warranty = "garanty"
     expense = "rasxod"
     transfer = "perechisleniye"
+    promo = "promo"
 
 
 class ServiceCenter(Base):

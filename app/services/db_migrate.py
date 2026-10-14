@@ -78,6 +78,7 @@ def ensure_schema() -> None:
 
         if dialect == "postgresql":
             _try_alter(conn, "ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'accountant'")
+            _try_alter(conn, "ALTER TYPE payment_type ADD VALUE IF NOT EXISTS 'promo'")
             _try_alter(
                 conn,
                 "DO $$ BEGIN "

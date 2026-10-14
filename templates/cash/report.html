@@ -41,8 +41,6 @@
 <section class="kpi-grid"
   data-opening="{{ '%.2f'|format(report.opening) }}"
   data-cash-in="{{ '%.2f'|format(report.cash_in) }}"
-  data-card-in="{{ '%.2f'|format(report.card_in) }}"
-  data-transfer-in="{{ '%.2f'|format(report.transfer_in) }}"
   data-expense="{{ '%.2f'|format(report.expense) }}"
   data-collection="{{ '%.2f'|format(report.collection) }}"
   data-closing="{{ '%.2f'|format(report.closing) }}">
@@ -53,14 +51,6 @@
   <div class="kpi">
     <span class="label-caps">{{ t('cash.cash_in') }}</span>
     <span class="order-total">{{ '%.2f'|format(report.cash_in) }} {{ t('orders.currency') }}</span>
-  </div>
-  <div class="kpi">
-    <span class="label-caps">{{ t('cash.card_in') }}</span>
-    <span class="order-total">{{ '%.2f'|format(report.card_in) }} {{ t('orders.currency') }}</span>
-  </div>
-  <div class="kpi">
-    <span class="label-caps">{{ t('cash.transfer_in') }}</span>
-    <span class="order-total">{{ '%.2f'|format(report.transfer_in) }} {{ t('orders.currency') }}</span>
   </div>
   <div class="kpi kpi-warn">
     <span class="label-caps">{{ t('cash.outflow') }}</span>
@@ -73,18 +63,48 @@
 </section>
 <p class="muted text-end">{{ t('cash.formula') }}</p>
 
+{% set val_labels = {
+  'Cash': 'cash.cash_in',
+  'Card': 'cash.card_in',
+  'perechisleniye': 'cash.transfer_in',
+  'promo': 'cash.promo_in'
+} %}
+<section class="card flush"
+  data-card-in="{{ '%.2f'|format(report.card_in) }}"
+  data-transfer-in="{{ '%.2f'|format(report.transfer_in) }}"
+  data-promo-in="{{ '%.2f'|format(report.promo_in) }}"
+  data-val="{{ '%.2f'|format(report.val) }}">
+  <div class="section-head">
+    <h2>{{ t('cash.val') }}</h2>
+    <span class="order-total">{{ '%.2f'|format(report.val) }} {{ t('orders.currency') }}</span>
+  </div>
+  <table class="data">
+    <tbody>
+      {% for name, amount in report.val_rows %}
+      <tr data-val-method="{{ name }}" data-val-amount="{{ '%.2f'|format(amount) }}">
+        <td>{{ t(val_labels[name]) }}</td>
+        <td class="order-sn">{{ '%.2f'|format(amount) }} {{ t('orders.currency') }}</td>
+      </tr>
+      {% endfor %}
+      <tr>
+        <td><strong>{{ t('cash.val') }}</strong></td>
+        <td class="order-total">{{ '%.2f'|format(report.val) }} {{ t('orders.currency') }}</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
 <section class="card flush">
   <div class="section-head">
     <h2>{{ t('cash.income') }}</h2>
-    <span class="order-total">{{ '%.2f'|format(report.cash_in) }} / {{ '%.2f'|format(report.card_in) }} / {{ '%.2f'|format(report.transfer_in) }} {{ t('orders.currency') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.val) }} {{ t('orders.currency') }}</span>
   </div>
   <table class="data">
     <thead>
       <tr>
         <th>{{ t('cash.date') }}</th>
-        <th>{{ t('cash.cash_in') }}</th>
-        <th>{{ t('cash.card_in') }}</th>
-        <th>{{ t('cash.transfer_in') }}</th>
+        <th>{{ t('cash.method') }}</th>
+        <th>{{ t('cash.amount') }}</th>
         <th>{{ t('cash.basis') }}</th>
       </tr>
     </thead>
@@ -92,9 +112,8 @@
       {% for row in report.income_rows %}
       <tr>
         <td class="order-sn">{{ row.order_date.strftime('%d.%m.%Y') }}</td>
-        <td class="order-sn">{{ '%.2f'|format(row.cash) }}</td>
-        <td class="order-sn">{{ '%.2f'|format(row.card) }}</td>
-        <td class="order-sn">{{ '%.2f'|format(row.transfer) }}</td>
+        <td>{{ t(val_labels[row.payment_type.value]) }}</td>
+        <td class="order-sn">{{ '%.2f'|format(row.amount) }}</td>
         <td>
           {% if can_edit %}
           <a href="/orders/{{ row.order_id }}">{{ t('cash.order') }} #{{ row.order_id }}</a>
@@ -106,7 +125,7 @@
         </td>
       </tr>
       {% else %}
-      <tr><td colspan="5" class="muted">{{ t('cash.empty') }}</td></tr>
+      <tr><td colspan="4" class="muted">{{ t('cash.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
