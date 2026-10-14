@@ -6,6 +6,9 @@
   <a class="btn btn-ghost" href="/cash">{{ t('cash.report_title') }}</a>
 </div>
 
+{% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
+{% if own_lock %}<p class="muted">{{ t('cash.closed_until', date=own_lock.strftime('%d.%m.%Y')) }}</p>{% endif %}
+
 <form method="post" action="/cash/entries" class="card stack">
   <div class="chip-row" data-input="kind">
     {% for k in kinds %}
@@ -18,7 +21,8 @@
 
   <div>
     <label>{{ t('cash.date') }}</label>
-    <input type="date" name="entry_date" required value="{{ today }}" />
+    <input type="date" name="entry_date" required value="{{ today }}"
+      {% if user.role.value != 'admin' %}max="{{ today }}"{% if own_lock %} min="{{ own_lock.isoformat() }}"{% endif %}{% endif %} />
   </div>
   <div>
     <label>{{ t('cash.amount') }}, {{ t('orders.currency') }}</label>
@@ -65,6 +69,7 @@
     <div class="order-card-top">
       <span class="order-date">{{ e.entry_date.strftime('%d.%m.%Y') }}</span>
       <span class="badge-status {% if e.kind.value == 'collection' %}issued{% else %}waiting_part{% endif %}">{{ t('cash.' + e.kind.value) }}</span>
+      {% if locks.get(e.service_center_id) and e.entry_date < locks[e.service_center_id] %}<span class="label-caps text-danger">{{ t('cash.closed_period') }}</span>{% endif %}
     </div>
     <div class="order-card-bottom">
       <div>
@@ -92,6 +97,11 @@
 <section class="stack">
   <h2>{{ t('admin.openings') }}</h2>
   <p class="muted">{{ t('admin.openings_hint') }}</p>
+  {% if locks %}
+  <p class="muted">
+    {% for c in centers %}{% if locks.get(c.id) %}{{ c.name }}: {{ t('cash.closed_until', date=locks[c.id].strftime('%d.%m.%Y')) }}{% if not loop.last %}<br />{% endif %}{% endif %}{% endfor %}
+  </p>
+  {% endif %}
   <form method="post" action="/cash/openings" class="card stack">
     <div class="grid-3">
       <div>

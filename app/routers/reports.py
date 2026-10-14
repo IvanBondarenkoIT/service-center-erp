@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.deps import require_admin_or_accountant
 from app.models import Machine, ServiceCenter, ServiceOrder, User
-from app.services.cash_book import build_cash_report
+from app.services.cash_book import build_cash_report, business_today
 from app.templating import templates
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -26,7 +26,7 @@ def reports_home(
     db: Session = Depends(get_db),
     user: User = Depends(require_admin_or_accountant),
 ):
-    today = date.today()
+    today = business_today()
     d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
     d_to = date.fromisoformat(date_to) if date_to else today
 

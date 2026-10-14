@@ -1034,6 +1034,16 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
 .kpi-warn .label-caps,
 .kpi-warn .order-total { color: var(--danger); }
 
+.text-danger { color: var(--danger); font-weight: 600; }
+.text-ok { color: var(--accent); font-weight: 600; }
+
+.notice-warn {
+  border-left: 3px solid var(--danger);
+  background: #fff;
+  padding: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
 .kpi-end {
   background: var(--accent);
 }

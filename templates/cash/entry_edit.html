@@ -6,6 +6,8 @@
   <a class="btn btn-ghost" href="/cash/entries">{{ t('orders.back') }}</a>
 </div>
 
+{% if closed %}<p class="notice-warn">{{ t('cash.closed_warning') }}</p>{% endif %}
+
 <form method="post" action="/cash/entries/{{ entry.id }}/edit" class="card stack">
   <div class="chip-row" data-input="kind">
     {% for k in kinds %}

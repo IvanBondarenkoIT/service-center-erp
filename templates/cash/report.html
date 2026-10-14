@@ -43,6 +43,7 @@
   data-cash-in="{{ '%.2f'|format(report.cash_in) }}"
   data-expense="{{ '%.2f'|format(report.expense) }}"
   data-collection="{{ '%.2f'|format(report.collection) }}"
+  data-reconcile="{{ '%.2f'|format(report.reconcile) }}"
   data-closing="{{ '%.2f'|format(report.closing) }}">
   <div class="kpi">
     <span class="label-caps">{{ t('cash.opening') }}</span>
@@ -54,14 +55,55 @@
   </div>
   <div class="kpi kpi-warn">
     <span class="label-caps">{{ t('cash.outflow') }}</span>
-    <span class="order-total">−{{ '%.2f'|format(report.outflow) }} {{ t('orders.currency') }}</span>
+    <span class="order-total">{% if report.outflow %}−{% endif %}{{ '%.2f'|format(report.outflow) }} {{ t('orders.currency') }}</span>
   </div>
+  {% if report.reconcile_rows %}
+  <div class="kpi {% if report.reconcile < 0 %}kpi-warn{% endif %}">
+    <span class="label-caps">{{ t('cash.reconcile') }}</span>
+    <span class="order-total">{% if report.reconcile > 0 %}+{% endif %}{{ '%.2f'|format(report.reconcile) }} {{ t('orders.currency') }}</span>
+  </div>
+  {% endif %}
   <div class="kpi kpi-end">
     <span class="label-caps">{{ t('cash.closing') }}</span>
     <span class="order-total">{{ '%.2f'|format(report.closing) }} {{ t('orders.currency') }}</span>
   </div>
 </section>
 <p class="muted text-end">{{ t('cash.formula') }}</p>
+
+{% if report.reconcile_rows %}
+<section class="card flush">
+  <div class="section-head">
+    <h2>{{ t('cash.reconcile') }}</h2>
+    <span class="order-total">{% if report.reconcile > 0 %}+{% endif %}{{ '%.2f'|format(report.reconcile) }} {{ t('orders.currency') }}</span>
+  </div>
+  <table class="data">
+    <thead>
+      <tr>
+        <th>{{ t('cash.date') }}</th>
+        <th>{{ t('cash.center') }}</th>
+        <th>{{ t('cash.fact') }}</th>
+        <th>{{ t('cash.computed') }}</th>
+        <th>{{ t('cash.difference') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in report.reconcile_rows %}
+      <tr data-reconcile-fact="{{ '%.2f'|format(r.fact) }}" data-reconcile-computed="{{ '%.2f'|format(r.computed) }}" data-reconcile-diff="{{ '%.2f'|format(r.diff) }}">
+        <td class="order-sn">{{ r.day.strftime('%d.%m.%Y') }}</td>
+        <td>{{ r.center_name }}</td>
+        <td class="order-sn">{{ '%.2f'|format(r.fact) }}</td>
+        <td class="order-sn">{{ '%.2f'|format(r.computed) }}</td>
+        <td class="{% if r.diff < 0 %}text-danger{% elif r.diff > 0 %}text-ok{% endif %}">
+          {% if r.diff == 0 %}{{ t('cash.match') }}
+          {% elif r.diff > 0 %}{{ t('cash.surplus') }} +{{ '%.2f'|format(r.diff) }}
+          {% else %}{{ t('cash.shortage') }} {{ '%.2f'|format(r.diff) }}{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
 
 {% set val_labels = {
   'Cash': 'cash.cash_in',

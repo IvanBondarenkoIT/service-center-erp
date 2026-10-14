@@ -24,6 +24,7 @@ from app.services.cash_book import (
     business_today,
     cash_report_xlsx,
     existing_cash_entry,
+    lock_date,
     recent_cash_entries,
 )
 from app.services.audit import diff_text, log_action
@@ -110,13 +111,29 @@ def cash_report_xlsx_download(
     )
 
 
+def _center_locks(db: Session, centers: list[ServiceCenter]) -> dict[int, date]:
+    locks = {}
+    for c in centers:
+        locked = lock_date(db, c.id)
+        if locked:
+            locks[c.id] = locked
+    return locks
+
+
+def _is_closed(db: Session, center_id: int, day: date) -> bool:
+    locked = lock_date(db, center_id)
+    return bool(locked and day < locked)
+
+
 @router.get("/cash/entries", response_class=HTMLResponse)
 def cash_entries_page(
     request: Request,
+    error: str = Query(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_cash_editor),
 ):
     centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
+    locks = _center_locks(db, centers)
     center_id = user.service_center_id if user.role != UserRole.admin else None
     entries = recent_cash_entries(db, center_id=center_id)
     openings = []
@@ -138,7 +155,10 @@ def cash_entries_page(
             "openings": openings,
             "kinds": list(CashEntryKind),
             "subtypes": list(CollectionSubtype),
-            "today": date.today().isoformat(),
+            "today": business_today().isoformat(),
+            "locks": locks,
+            "own_lock": locks.get(user.service_center_id) if user.role != UserRole.admin else None,
+            "error": error,
         },
     )
 
@@ -158,7 +178,7 @@ def cash_entries_create(
         entry_kind = CashEntryKind(kind)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="bad_kind") from exc
-    parsed_date = _parse_date(entry_date, date.today())
+    parsed_date = _parse_date(entry_date, business_today())
     value = _parse_amount(amount)
     if value <= 0:
         raise HTTPException(status_code=400, detail="bad_amount")
@@ -178,6 +198,13 @@ def cash_entries_create(
     if not center_id:
         raise HTTPException(status_code=400, detail="no_center")
 
+    closed = _is_closed(db, center_id, parsed_date)
+    if user.role != UserRole.admin:
+        if closed:
+            return RedirectResponse("/cash/entries?error=cash.err_closed", status_code=303)
+        if parsed_date > business_today():
+            return RedirectResponse("/cash/entries?error=cash.err_future", status_code=303)
+
     desc = (description or "").strip()
     if existing_cash_entry(
         db,
@@ -189,17 +216,26 @@ def cash_entries_create(
     ):
         return RedirectResponse("/cash/entries", status_code=303)
 
-    db.add(
-        CashEntry(
-            entry_date=parsed_date,
-            service_center_id=center_id,
-            kind=entry_kind,
-            subtype=coll_subtype,
-            amount=value,
-            description=desc,
-            created_by_id=user.id,
-        )
+    entry = CashEntry(
+        entry_date=parsed_date,
+        service_center_id=center_id,
+        kind=entry_kind,
+        subtype=coll_subtype,
+        amount=value,
+        description=desc,
+        created_by_id=user.id,
     )
+    db.add(entry)
+    if closed:
+        db.flush()
+        log_action(
+            db,
+            user,
+            "create",
+            "cash_entry",
+            entry.id,
+            "; ".join(f"{k}: {v}" for k, v in _entry_snapshot(entry).items()) + "; closed_period",
+        )
     db.commit()
     return RedirectResponse("/cash/entries", status_code=303)
 
@@ -240,6 +276,7 @@ def cash_entry_edit_page(
             "centers": centers,
             "kinds": list(CashEntryKind),
             "subtypes": list(CollectionSubtype),
+            "closed": _is_closed(db, entry.service_center_id, entry.entry_date),
         },
     )
 
@@ -286,13 +323,19 @@ def cash_entry_update(
         raise HTTPException(status_code=400, detail="duplicate_entry")
 
     before = _entry_snapshot(entry)
+    closed = _is_closed(db, entry.service_center_id, entry.entry_date) or _is_closed(
+        db, service_center_id, new_date
+    )
     entry.kind = entry_kind
     entry.subtype = coll_subtype
     entry.entry_date = new_date
     entry.amount = value
     entry.description = (description or "").strip()
     entry.service_center_id = service_center_id
-    log_action(db, user, "edit", "cash_entry", entry.id, diff_text(before, _entry_snapshot(entry)))
+    details = diff_text(before, _entry_snapshot(entry))
+    if closed:
+        details = f"{details}; closed_period"
+    log_action(db, user, "edit", "cash_entry", entry.id, details)
     db.commit()
     return RedirectResponse("/cash/entries", status_code=303)
 
@@ -305,15 +348,11 @@ def cash_entry_delete(
 ):
     entry = _get_entry(db, entry_id)
     snap = _entry_snapshot(entry)
+    details = "; ".join(f"{k}: {v}" for k, v in snap.items())
+    if _is_closed(db, entry.service_center_id, entry.entry_date):
+        details = f"{details}; closed_period"
     db.delete(entry)
-    log_action(
-        db,
-        user,
-        "delete",
-        "cash_entry",
-        entry_id,
-        "; ".join(f"{k}: {v}" for k, v in snap.items()),
-    )
+    log_action(db, user, "delete", "cash_entry", entry_id, details)
     db.commit()
     return RedirectResponse("/cash/entries", status_code=303)
 

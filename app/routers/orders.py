@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -27,7 +27,7 @@ from app.models import (
 from app.services.audit import log_action
 from app.services.erp_clients import find_erp_client
 from app.services.phones import normalize_phone
-from app.services.cash_book import BUSINESS_TZ
+from app.services.cash_book import business_today, cash_date, lock_date
 from app.services.serial_scan import serial_from_scan
 from app.templating import templates
 
@@ -382,7 +382,7 @@ async def order_intake_submit(
     _link_client_machine(db, client, machine)
 
     order = ServiceOrder(
-        order_date=date.today(),
+        order_date=business_today(),
         assignee_id=assignee_id,
         service_center_id=service_center_id,
         machine_id=machine.id,
@@ -455,7 +455,7 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             "pay_methods": list(PAY_METHODS),
             "statuses": list(WORKFLOW_STATUSES),
             "history": history,
-            "today": date.today().isoformat(),
+            "today": business_today().isoformat(),
             "locked": user.role == UserRole.accountant
             or bool(
                 order
@@ -463,6 +463,7 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
                 and user.role != UserRole.admin
             ),
             "read_only": user.role == UserRole.accountant,
+            "closed_period": bool(order and _paid_in_closed_period(db, order)),
             "current_payment": _order_payment(order) if order else None,
         },
     )
@@ -499,7 +500,7 @@ async def order_save(
     try:
         order_date = date.fromisoformat(order_date_raw)
     except ValueError:
-        order_date = date.today()
+        order_date = business_today()
 
     comment = str(form.get("comment") or "")
     status_raw = str(form.get("status") or OrderStatus.in_progress.value)
@@ -593,7 +594,8 @@ async def order_save(
                 "edit_issued",
                 "order",
                 order.id,
-                f"total {order.total_amount} → {sum((ln.amount_work or 0) + (ln.amount_parts or 0) for ln in lines)}",
+                f"total {order.total_amount} → {sum((ln.amount_work or 0) + (ln.amount_parts or 0) for ln in lines)}"
+                + _closed_mark(db, order),
             )
         order.order_date = order_date
         order.assignee_id = assignee_id
@@ -636,7 +638,8 @@ def _mark_paid(order: ServiceOrder, payment: PaymentType) -> None:
         else:
             line.payment_type = payment
     order.status = OrderStatus.issued
-    order.paid_at = datetime.now(BUSINESS_TZ)
+    # UTC: naive timestamp columns (SQLite, ALTER-added Postgres) are read back as UTC.
+    order.paid_at = datetime.now(timezone.utc)
 
 
 @router.post("/orders/{order_id}/pay")
@@ -670,6 +673,17 @@ async def order_pay(
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
 
+def _paid_in_closed_period(db: Session, order: ServiceOrder) -> bool:
+    if order.status != OrderStatus.issued:
+        return False
+    locked = lock_date(db, order.service_center_id)
+    return bool(locked and cash_date(order) < locked)
+
+
+def _closed_mark(db: Session, order: ServiceOrder) -> str:
+    return "; closed_period" if _paid_in_closed_period(db, order) else ""
+
+
 def _order_payment(order: ServiceOrder) -> PaymentType | None:
     for line in order.lines:
         if line.payment_type in PAY_METHODS:
@@ -699,6 +713,7 @@ def order_reopen(
         raise HTTPException(400, "not_issued")
     paid = order.paid_at
     payment = _order_payment(order)
+    mark = _closed_mark(db, order)
     order.status = OrderStatus.ready
     order.paid_at = None
     log_action(
@@ -707,9 +722,12 @@ def order_reopen(
         "reopen",
         "order",
         order.id,
-        f"paid_at {paid:%d.%m.%Y %H:%M}; {payment.value if payment else '—'}; {order.total_amount}"
-        if paid
-        else f"{payment.value if payment else '—'}; {order.total_amount}",
+        (
+            f"paid_at {paid:%d.%m.%Y %H:%M}; {payment.value if payment else '—'}; {order.total_amount}"
+            if paid
+            else f"{payment.value if payment else '—'}; {order.total_amount}"
+        )
+        + mark,
     )
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
@@ -742,7 +760,7 @@ async def order_repay(
         "repay",
         "order",
         order.id,
-        f"{before.value if before else '—'} → {payment.value}",
+        f"{before.value if before else '—'} → {payment.value}" + _closed_mark(db, order),
     )
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
