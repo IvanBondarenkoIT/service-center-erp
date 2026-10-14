@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from fastapi import Request
@@ -19,7 +20,16 @@ def _i18n_context(request: Request) -> dict:
     }
 
 
+def _asset_version() -> str:
+    digest = hashlib.sha256()
+    for path in sorted((BASE_DIR / "static").glob("*.*")):
+        if path.suffix in {".js", ".css"}:
+            digest.update(path.read_bytes())
+    return digest.hexdigest()[:10]
+
+
 templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates"),
     context_processors=[_i18n_context],
 )
+templates.env.globals["asset_v"] = _asset_version()

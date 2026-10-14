@@ -21,12 +21,15 @@ function applyErpModel(erpId, name) {
   if (box) box.replaceChildren();
 }
 
-document.addEventListener("pointerdown", (event) => {
+function pickErpModel(event) {
   const pick = event.target.closest("[data-erp-id]");
   if (!pick) return;
   event.preventDefault();
   applyErpModel(pick.dataset.erpId, pick.dataset.modelName || "");
-});
+}
+
+document.addEventListener("pointerdown", pickErpModel);
+document.addEventListener("click", pickErpModel);
 
 function syncLineWarranty(card, on) {
   if (!card) return;

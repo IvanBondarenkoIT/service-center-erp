@@ -13,8 +13,20 @@ def test_login_html_shell(client) -> None:
     assert r.status_code == 200
     html = r.text
     assert 'lang="' in html
-    assert "/static/app.css" in html
+    assert "/static/app.css?v=" in html
     assert "cdn.tailwindcss.com" not in html
+
+
+def test_static_assets_are_versioned(client) -> None:
+    from app.templating import templates
+
+    version = templates.env.globals["asset_v"]
+    assert version
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    page = client.get("/orders/intake")
+    assert f"/static/app.js?v={version}" in page.text
+    assert f"/static/app.css?v={version}" in page.text
+    assert f"/static/intake-scan.js?v={version}" in page.text
 
 
 def test_post_locale_sets_cookie(client) -> None:
