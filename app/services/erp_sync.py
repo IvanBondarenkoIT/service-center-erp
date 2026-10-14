@@ -51,14 +51,14 @@ ORDER BY G.ID
 PARTS_MAX_SQL = """
 SELECT MAX(G.ID) AS MAX_ID
 FROM GOODS G
-WHERE G.OWNER IN (26287, 26894, 26889)
+WHERE G.OWNER IN ({owners})
 """
 
 PARTS_BATCH_SQL = """
 SELECT FIRST ? SKIP ?
   G.ID AS ERP_GOODS_ID, G.NAME AS NAME, G.OWNER AS GROUP_ID
 FROM GOODS G
-WHERE G.OWNER IN (26287, 26894, 26889)
+WHERE G.OWNER IN ({owners})
 ORDER BY G.ID
 """
 
@@ -66,10 +66,20 @@ PARTS_NEW_SQL = """
 SELECT FIRST ? SKIP ?
   G.ID AS ERP_GOODS_ID, G.NAME AS NAME, G.OWNER AS GROUP_ID
 FROM GOODS G
-WHERE G.OWNER IN (26287, 26894, 26889)
+WHERE G.OWNER IN ({owners})
   AND G.ID > ?
 ORDER BY G.ID
 """
+
+GROUPS_SQL = """
+SELECT G.ID AS ID, G.NAME AS NAME, G.OWNER AS OWNER
+FROM GOODS G
+WHERE G.ID IN (SELECT DISTINCT G2.OWNER FROM GOODS G2 WHERE G2.OWNER IS NOT NULL)
+"""
+
+# Granit keeps spare parts in groups named "ЗЧ Гр Delonghi", "зч Schaerer", "Б/У Запчасти", ...
+PART_GROUP_RE = re.compile(r"^\s*з\s*[/.]?\s*ч\b|запчаст|spare\s*part", re.IGNORECASE)
+FALLBACK_PART_GROUPS = (26287, 26894, 26889)
 
 REFRESH_BY_IDS_SQL = """
 SELECT G.ID AS ERP_GOODS_ID, G.NAME AS NAME, G.OWNER AS GROUP_ID
@@ -89,8 +99,32 @@ SCOPE_CONFIG: dict[str, dict[str, Any]] = {
         "max_sql": PARTS_MAX_SQL,
         "batch_sql": PARTS_BATCH_SQL,
         "new_sql": PARTS_NEW_SQL,
+        "owner_groups": True,
     },
 }
+
+
+def part_group_ids(groups: list[dict[str, Any]]) -> list[int]:
+    """Groups whose name looks like spare parts, plus all their nested subgroups."""
+    parent = {int(g["ID"]): g.get("OWNER") for g in groups}
+    hits = {int(g["ID"]) for g in groups if PART_GROUP_RE.search(str(g.get("NAME") or ""))}
+
+    def under_hit(gid: int) -> bool:
+        seen: set[int] = set()
+        p = parent.get(gid)
+        while p is not None and p not in seen:
+            if p in hits:
+                return True
+            seen.add(p)
+            p = parent.get(p)
+        return False
+
+    return sorted(hits | {gid for gid in parent if under_hit(gid)})
+
+
+def _fetch_part_groups(client: ProxyClient) -> list[int]:
+    ids = part_group_ids(client.query(GROUPS_SQL))
+    return ids or list(FALLBACK_PART_GROUPS)
 
 
 def get_proxy_client() -> ProxyClient:
@@ -262,7 +296,25 @@ def _sync_scope(
     }
     now = datetime.utcnow()
 
-    max_id = _probe_max_id(client, cfg["max_sql"])
+    max_sql, batch_sql, new_sql = cfg["max_sql"], cfg["batch_sql"], cfg["new_sql"]
+    if cfg.get("owner_groups"):
+        owners = _fetch_part_groups(client)
+        owners_sql = ",".join(str(g) for g in owners)
+        max_sql = max_sql.format(owners=owners_sql)
+        batch_sql = batch_sql.format(owners=owners_sql)
+        new_sql = new_sql.format(owners=owners_sql)
+        stats["groups"] = len(owners)
+        stats["groups_sig"] = hashlib.sha256(owners_sql.encode()).hexdigest()[:12]
+        try:
+            prev_sig = json.loads(state.last_stats or "{}").get("groups_sig")
+        except json.JSONDecodeError:
+            prev_sig = None
+        if prev_sig != stats["groups_sig"]:
+            # Older ids in newly added groups are below last_max_goods_id; re-read them all.
+            mode = "full"
+            stats["mode"] = "full"
+
+    max_id = _probe_max_id(client, max_sql)
     stats["max_id"] = max_id
 
     skip_new = False
@@ -274,9 +326,9 @@ def _sync_scope(
 
     if not skip_new:
         if mode == "full":
-            rows = _fetch_batched(client, cfg["batch_sql"], None, stats)
+            rows = _fetch_batched(client, batch_sql, None, stats)
         else:
-            rows = _fetch_batched(client, cfg["new_sql"], [state.last_max_goods_id], stats)
+            rows = _fetch_batched(client, new_sql, [state.last_max_goods_id], stats)
         _upsert_rows(db, rows, kind, stats, now)
 
     if mode == "incremental":

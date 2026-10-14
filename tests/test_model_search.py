@@ -74,6 +74,22 @@ def test_erp_suggest_endpoint_normalized(client) -> None:
     assert 'data-model-name="Delonghi ECAM 22.110.B"' in r.text
 
 
+def test_part_groups_detected_by_name() -> None:
+    from app.services.erp_sync import part_group_ids
+
+    groups = [
+        {"ID": 334, "NAME": "Total_Listino", "OWNER": None},
+        {"ID": 24745, "NAME": "ЗЧ Гр Delonghi", "OWNER": 334},
+        {"ID": 24521, "NAME": "ЗЧ. Гр. Saeco", "OWNER": 334},
+        {"ID": 6194, "NAME": "зч Schaerer", "OWNER": 334},
+        {"ID": 26287, "NAME": "Б/У Запчасти", "OWNER": 334},
+        {"ID": 50001, "NAME": "Pumps", "OWNER": 24745},
+        {"ID": 21270, "NAME": "Delonghi coffee makers", "OWNER": 334},
+        {"ID": 22028, "NAME": "Consumables", "OWNER": 334},
+    ]
+    assert part_group_ids(groups) == [6194, 24521, 24745, 26287, 50001]
+
+
 def test_part_suggest_only_for_part_lines(client) -> None:
     part_id = _BASE_ID + 100
     db = SessionLocal()
