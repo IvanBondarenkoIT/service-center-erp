@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin.users') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('admin.users') }}</h1>
+</div>
+
+{% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
+
+<form method="post" action="/admin/users" class="card stack">
+  <h2>{{ t('admin.user_new') }}</h2>
+  <div class="grid-3">
+    <div><label>{{ t('admin.login') }}</label><input name="login" required autocomplete="off" /></div>
+    <div><label>{{ t('dict.name') }}</label><input name="full_name" /></div>
+    <div><label>{{ t('admin.password') }}</label><input name="password" type="password" required minlength="6" autocomplete="new-password" /></div>
+  </div>
+  <div class="grid-2">
+    <div>
+      <label>{{ t('admin.role') }}</label>
+      <select name="role">
+        {% for r in roles %}
+        <option value="{{ r.value }}" {% if r.value == 'mechanic' %}selected{% endif %}>{{ t('role.' + r.value) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>{{ t('cash.center') }}</label>
+      <select name="service_center_id">
+        <option value="">—</option>
+        {% for c in centers %}
+        <option value="{{ c.id }}">{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <button class="btn" type="submit">{{ t('dict.add') }}</button>
+</form>
+
+<div class="card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>{{ t('admin.login') }}</th>
+        <th>{{ t('dict.name') }}</th>
+        <th>{{ t('admin.role') }}</th>
+        <th>{{ t('cash.center') }}</th>
+        <th>{{ t('admin.active') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr class="{% if not u.is_active %}muted{% endif %}">
+        <td><a href="/admin/users/{{ u.id }}">{{ u.login }}</a></td>
+        <td>{{ u.full_name or '—' }}</td>
+        <td>{{ t('role.' + u.role.value) }}</td>
+        <td>{{ u.service_center.name if u.service_center else '—' }}</td>
+        <td>{% if u.is_active %}{{ t('admin.yes') }}{% else %}{{ t('admin.no') }}{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

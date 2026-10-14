@@ -13,6 +13,7 @@ from app.deps import get_current_user, require_admin, require_cash_editor
 from app.models import (
     CashEntry,
     CashEntryKind,
+    CashOpening,
     CollectionSubtype,
     ServiceCenter,
     User,
@@ -25,6 +26,7 @@ from app.services.cash_book import (
     existing_cash_entry,
     recent_cash_entries,
 )
+from app.services.audit import diff_text, log_action
 from app.templating import templates
 
 router = APIRouter(tags=["cash"])
@@ -117,6 +119,15 @@ def cash_entries_page(
     centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
     center_id = user.service_center_id if user.role != UserRole.admin else None
     entries = recent_cash_entries(db, center_id=center_id)
+    openings = []
+    if user.role == UserRole.admin:
+        openings = list(
+            db.scalars(
+                select(CashOpening).order_by(
+                    CashOpening.as_of_date.desc(), CashOpening.service_center_id
+                ).limit(30)
+            )
+        )
     return templates.TemplateResponse(
         request,
         "cash/entries.html",
@@ -124,6 +135,7 @@ def cash_entries_page(
             "user": user,
             "centers": centers,
             "entries": entries,
+            "openings": openings,
             "kinds": list(CashEntryKind),
             "subtypes": list(CollectionSubtype),
             "today": date.today().isoformat(),
@@ -188,6 +200,176 @@ def cash_entries_create(
             created_by_id=user.id,
         )
     )
+    db.commit()
+    return RedirectResponse("/cash/entries", status_code=303)
+
+
+def _entry_snapshot(entry: CashEntry) -> dict:
+    return {
+        "date": entry.entry_date.isoformat(),
+        "center": entry.service_center_id,
+        "kind": entry.kind.value,
+        "subtype": entry.subtype.value if entry.subtype else "",
+        "amount": entry.amount,
+        "description": entry.description,
+    }
+
+
+def _get_entry(db: Session, entry_id: int) -> CashEntry:
+    entry = db.get(CashEntry, entry_id)
+    if not entry:
+        raise HTTPException(404)
+    return entry
+
+
+@router.get("/cash/entries/{entry_id}/edit", response_class=HTMLResponse)
+def cash_entry_edit_page(
+    entry_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    entry = _get_entry(db, entry_id)
+    centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
+    return templates.TemplateResponse(
+        request,
+        "cash/entry_edit.html",
+        {
+            "user": user,
+            "entry": entry,
+            "centers": centers,
+            "kinds": list(CashEntryKind),
+            "subtypes": list(CollectionSubtype),
+        },
+    )
+
+
+@router.post("/cash/entries/{entry_id}/edit")
+def cash_entry_update(
+    entry_id: int,
+    kind: str = Form(...),
+    entry_date: str = Form(...),
+    amount: str = Form(...),
+    description: str = Form(""),
+    subtype: str = Form(""),
+    service_center_id: int = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    entry = _get_entry(db, entry_id)
+    try:
+        entry_kind = CashEntryKind(kind)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="bad_kind") from exc
+    value = _parse_amount(amount)
+    if value <= 0:
+        raise HTTPException(status_code=400, detail="bad_amount")
+    coll_subtype = None
+    if entry_kind == CashEntryKind.collection:
+        try:
+            coll_subtype = CollectionSubtype(subtype)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="bad_subtype") from exc
+    if not db.get(ServiceCenter, service_center_id):
+        raise HTTPException(status_code=400, detail="no_center")
+
+    new_date = _parse_date(entry_date, entry.entry_date)
+    clash = existing_cash_entry(
+        db,
+        center_id=service_center_id,
+        entry_date=new_date,
+        kind=entry_kind,
+        amount=value,
+        description=(description or "").strip(),
+    )
+    if clash and clash.id != entry.id:
+        raise HTTPException(status_code=400, detail="duplicate_entry")
+
+    before = _entry_snapshot(entry)
+    entry.kind = entry_kind
+    entry.subtype = coll_subtype
+    entry.entry_date = new_date
+    entry.amount = value
+    entry.description = (description or "").strip()
+    entry.service_center_id = service_center_id
+    log_action(db, user, "edit", "cash_entry", entry.id, diff_text(before, _entry_snapshot(entry)))
+    db.commit()
+    return RedirectResponse("/cash/entries", status_code=303)
+
+
+@router.post("/cash/entries/{entry_id}/delete")
+def cash_entry_delete(
+    entry_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    entry = _get_entry(db, entry_id)
+    snap = _entry_snapshot(entry)
+    db.delete(entry)
+    log_action(
+        db,
+        user,
+        "delete",
+        "cash_entry",
+        entry_id,
+        "; ".join(f"{k}: {v}" for k, v in snap.items()),
+    )
+    db.commit()
+    return RedirectResponse("/cash/entries", status_code=303)
+
+
+@router.post("/cash/openings")
+def cash_opening_set(
+    as_of_date: str = Form(...),
+    amount: str = Form(...),
+    service_center_id: int = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    if not db.get(ServiceCenter, service_center_id):
+        raise HTTPException(status_code=400, detail="no_center")
+    try:
+        as_of = date.fromisoformat(as_of_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="bad_date") from exc
+    value = _parse_amount(amount)
+    opening = db.scalar(
+        select(CashOpening).where(
+            CashOpening.service_center_id == service_center_id,
+            CashOpening.as_of_date == as_of,
+        )
+    )
+    old = opening.amount if opening else None
+    if opening:
+        opening.amount = value
+    else:
+        opening = CashOpening(service_center_id=service_center_id, as_of_date=as_of, amount=value)
+        db.add(opening)
+    db.flush()
+    log_action(
+        db,
+        user,
+        "set",
+        "cash_opening",
+        opening.id,
+        f"center {service_center_id}; {as_of.isoformat()}; {old if old is not None else '—'} → {value}",
+    )
+    db.commit()
+    return RedirectResponse("/cash/entries", status_code=303)
+
+
+@router.post("/cash/openings/{opening_id}/delete")
+def cash_opening_delete(
+    opening_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    opening = db.get(CashOpening, opening_id)
+    if not opening:
+        raise HTTPException(404)
+    details = f"center {opening.service_center_id}; {opening.as_of_date.isoformat()}; {opening.amount}"
+    db.delete(opening)
+    log_action(db, user, "delete", "cash_opening", opening_id, details)
     db.commit()
     return RedirectResponse("/cash/entries", status_code=303)
 

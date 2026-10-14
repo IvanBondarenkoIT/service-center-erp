@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.deps import get_staff_user
+from app.deps import get_current_user, get_staff_user, require_admin
 from app.models import (
     Client,
     ClientMachine,
@@ -24,6 +24,7 @@ from app.models import (
     User,
     UserRole,
 )
+from app.services.audit import log_action
 from app.services.erp_clients import find_erp_client
 from app.services.phones import normalize_phone
 from app.services.cash_book import BUSINESS_TZ
@@ -408,7 +409,7 @@ def order_edit(
     order_id: int,
     request: Request,
     db: Session = Depends(get_db),
-    user: User = Depends(get_staff_user),
+    user: User = Depends(get_current_user),
 ):
     order = db.scalar(
         select(ServiceOrder)
@@ -421,7 +422,7 @@ def order_edit(
     )
     if not order:
         raise HTTPException(404)
-    if user.role != UserRole.admin and order.assignee_id != user.id:
+    if user.role == UserRole.mechanic and order.assignee_id != user.id:
         raise HTTPException(403)
     return _order_form(request, db, user, order=order)
 
@@ -430,8 +431,14 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
     centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
     reasons = list(db.scalars(select(IssueReason).order_by(IssueReason.name)))
     mechanics = list(
-        db.scalars(select(User).where(User.role == UserRole.mechanic).order_by(User.login))
+        db.scalars(
+            select(User)
+            .where(User.role == UserRole.mechanic, User.is_active.is_(True))
+            .order_by(User.login)
+        )
     )
+    if order and order.assignee and order.assignee not in mechanics:
+        mechanics.append(order.assignee)
     history = []
     if order and order.machine and not order.machine.needs_serial:
         history = _machine_history(db, order.machine.id, exclude_order_id=order.id)
@@ -449,11 +456,14 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             "statuses": list(WORKFLOW_STATUSES),
             "history": history,
             "today": date.today().isoformat(),
-            "locked": bool(
+            "locked": user.role == UserRole.accountant
+            or bool(
                 order
                 and order.status == OrderStatus.issued
                 and user.role != UserRole.admin
             ),
+            "read_only": user.role == UserRole.accountant,
+            "current_payment": _order_payment(order) if order else None,
         },
     )
 
@@ -577,6 +587,14 @@ async def order_save(
             if user.role != UserRole.admin:
                 raise HTTPException(403)
             status = OrderStatus.issued
+            log_action(
+                db,
+                user,
+                "edit_issued",
+                "order",
+                order.id,
+                f"total {order.total_amount} → {sum((ln.amount_work or 0) + (ln.amount_parts or 0) for ln in lines)}",
+            )
         order.order_date = order_date
         order.assignee_id = assignee_id
         order.service_center_id = service_center_id
@@ -650,6 +668,100 @@ async def order_pay(
     _mark_paid(order, payment)
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
+
+
+def _order_payment(order: ServiceOrder) -> PaymentType | None:
+    for line in order.lines:
+        if line.payment_type in PAY_METHODS:
+            return line.payment_type
+    return None
+
+
+def _load_order(db: Session, order_id: int) -> ServiceOrder:
+    order = db.scalars(
+        select(ServiceOrder)
+        .options(joinedload(ServiceOrder.lines))
+        .where(ServiceOrder.id == order_id)
+    ).unique().one_or_none()
+    if not order:
+        raise HTTPException(404)
+    return order
+
+
+@router.post("/orders/{order_id}/reopen")
+def order_reopen(
+    order_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    order = _load_order(db, order_id)
+    if order.status != OrderStatus.issued:
+        raise HTTPException(400, "not_issued")
+    paid = order.paid_at
+    payment = _order_payment(order)
+    order.status = OrderStatus.ready
+    order.paid_at = None
+    log_action(
+        db,
+        user,
+        "reopen",
+        "order",
+        order.id,
+        f"paid_at {paid:%d.%m.%Y %H:%M}; {payment.value if payment else '—'}; {order.total_amount}"
+        if paid
+        else f"{payment.value if payment else '—'}; {order.total_amount}",
+    )
+    db.commit()
+    return RedirectResponse(f"/orders/{order.id}", status_code=303)
+
+
+@router.post("/orders/{order_id}/repay")
+async def order_repay(
+    order_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    order = _load_order(db, order_id)
+    if order.status != OrderStatus.issued:
+        raise HTTPException(400, "not_issued")
+    form = await request.form()
+    try:
+        payment = PaymentType(str(form.get("payment_type") or ""))
+    except ValueError:
+        raise HTTPException(400, "payment_required")
+    if payment not in PAY_METHODS:
+        raise HTTPException(400, "payment_required")
+    before = _order_payment(order)
+    paid_at = order.paid_at
+    _mark_paid(order, payment)
+    order.paid_at = paid_at or order.paid_at
+    log_action(
+        db,
+        user,
+        "repay",
+        "order",
+        order.id,
+        f"{before.value if before else '—'} → {payment.value}",
+    )
+    db.commit()
+    return RedirectResponse(f"/orders/{order.id}", status_code=303)
+
+
+@router.post("/orders/{order_id}/delete")
+def order_delete(
+    order_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+):
+    order = _load_order(db, order_id)
+    if order.status == OrderStatus.issued:
+        raise HTTPException(400, "issued_cannot_delete")
+    details = f"{order.order_date:%d.%m.%Y}; machine {order.machine_id}; client {order.client_id}; {order.total_amount}"
+    db.delete(order)
+    log_action(db, user, "delete", "order", order_id, details)
+    db.commit()
+    return RedirectResponse("/", status_code=303)
 
 
 @router.get("/orders/partials/line-row", response_class=HTMLResponse)

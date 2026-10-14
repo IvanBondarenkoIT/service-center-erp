@@ -58,6 +58,12 @@ def get_staff_user(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+def require_admin_or_accountant(user: User = Depends(get_current_user)) -> User:
+    if user.role not in (UserRole.admin, UserRole.accountant):
+        raise HTTPException(status_code=403, detail="Admin or accountant only")
+    return user
+
+
 def require_cash_editor(user: User = Depends(get_current_user)) -> User:
     if user.role == UserRole.accountant:
         raise HTTPException(status_code=403, detail="Accountant is read-only")

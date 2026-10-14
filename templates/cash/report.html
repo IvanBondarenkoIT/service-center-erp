@@ -115,11 +115,7 @@
         <td>{{ t(val_labels[row.payment_type.value]) }}</td>
         <td class="order-sn">{{ '%.2f'|format(row.amount) }}</td>
         <td>
-          {% if can_edit %}
           <a href="/orders/{{ row.order_id }}">{{ t('cash.order') }} #{{ row.order_id }}</a>
-          {% else %}
-          {{ t('cash.order') }} #{{ row.order_id }}
-          {% endif %}
           · {{ row.note }}
           <div class="muted">{{ row.assignee }}</div>
         </td>

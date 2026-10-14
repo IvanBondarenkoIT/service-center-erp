@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ target.login }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ target.login }}</h1>
+  <a class="btn btn-ghost" href="/admin/users">{{ t('orders.back') }}</a>
+</div>
+
+{% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
+
+<form method="post" action="/admin/users/{{ target.id }}" class="card stack">
+  <div><label>{{ t('dict.name') }}</label><input name="full_name" value="{{ target.full_name }}" /></div>
+  <div class="grid-2">
+    <div>
+      <label>{{ t('admin.role') }}</label>
+      <select name="role">
+        {% for r in roles %}
+        <option value="{{ r.value }}" {% if r.value == target.role.value %}selected{% endif %}>{{ t('role.' + r.value) }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label>{{ t('cash.center') }}</label>
+      <select name="service_center_id">
+        <option value="">—</option>
+        {% for c in centers %}
+        <option value="{{ c.id }}" {% if c.id == target.service_center_id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <label class="check-row">
+    <input type="checkbox" name="is_active" value="1" {% if target.is_active %}checked{% endif %} />
+    {{ t('admin.active') }}
+  </label>
+  <div>
+    <label>{{ t('admin.new_password') }}</label>
+    <input name="password" type="password" minlength="6" autocomplete="new-password" placeholder="{{ t('admin.password_keep') }}" />
+  </div>
+  <button class="btn btn-login" type="submit">{{ t('orders.save') }}</button>
+</form>
+{% endblock %}

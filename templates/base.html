@@ -21,7 +21,7 @@
   {% set on_orders = path == '/' or (path.startswith('/orders') and path != '/orders/new' and path != '/orders/intake') %}
   {% set on_new = path == '/orders/intake' or path == '/orders/new' %}
   {% set on_cash = path.startswith('/cash') %}
-  {% set on_more = path == '/more' or path.startswith('/dict') or path.startswith('/reports') %}
+  {% set on_more = path == '/more' or path.startswith('/dict') or path.startswith('/reports') or path.startswith('/admin') %}
 
   {% if is_admin %}
   <aside class="sidebar">
@@ -36,6 +36,8 @@
       <a href="/dict/machines" class="{% if path.startswith('/dict/machines') %}active{% endif %}">{{ t('nav.machines') }}</a>
       <a href="/dict/reasons" class="{% if path.startswith('/dict/reasons') %}active{% endif %}">{{ t('nav.reasons') }}</a>
       <a href="/dict/erp-catalog" class="{% if path.startswith('/dict/erp') %}active{% endif %}">{{ t('nav.erp_catalog') }}</a>
+      <a href="/admin/users" class="{% if path.startswith('/admin/users') %}active{% endif %}">{{ t('admin.users') }}</a>
+      <a href="/admin/audit" class="{% if path.startswith('/admin/audit') %}active{% endif %}">{{ t('admin.audit') }}</a>
     </nav>
   </aside>
   {% endif %}
@@ -52,6 +54,11 @@
         <a href="/" class="{% if on_orders %}active{% endif %}">{{ t('nav.orders') }}</a>
         <a href="/orders/intake" class="{% if on_new %}active{% endif %}">{{ t('nav.intake') }}</a>
         <a href="/cash" class="{% if on_cash %}active{% endif %}">{{ t('nav.cash') }}</a>
+      </nav>
+      {% elif is_accountant %}
+      <nav class="top-nav">
+        <a href="/cash" class="{% if on_cash %}active{% endif %}">{{ t('nav.cash') }}</a>
+        <a href="/reports" class="{% if path.startswith('/reports') %}active{% endif %}">{{ t('nav.reports') }}</a>
       </nav>
       {% endif %}
       <div class="user-meta">

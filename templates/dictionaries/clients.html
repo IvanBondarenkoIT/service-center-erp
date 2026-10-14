@@ -4,6 +4,7 @@
 <div class="toolbar">
   <h1>{{ t('nav.clients') }}</h1>
 </div>
+{% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
 <form method="get" class="order-filters">
   <div class="search-field">
     <label for="client-search">{{ t('orders.search') }}</label>
@@ -21,11 +22,22 @@
 </form>
 <div class="order-list">
   {% for c in clients %}
-  <div class="sheet-row">
-    <span class="label-caps">{{ t('orders.client') }}</span>
-    <span class="order-model">{{ c.name or '—' }}</span>
-    <span class="order-sn">{{ c.phone }}</span>
-  </div>
+  {% set used = order_counts.get(c.id, 0) %}
+  <details class="sheet-row dict-row">
+    <summary>
+      <span class="label-caps">{{ t('orders.client') }}{% if used %} · {{ t('admin.orders_count', n=used) }}{% endif %}</span>
+      <span class="order-model">{{ c.name or '—' }}</span>
+      <span class="order-sn">{{ c.phone }}</span>
+    </summary>
+    <form method="post" action="/dict/clients/{{ c.id }}/edit" class="grid-3 field-gap">
+      <div><label>{{ t('dict.phone') }}</label><input name="phone" required class="input-mono" value="{{ c.phone }}" /></div>
+      <div><label>{{ t('dict.name') }}</label><input name="name" value="{{ c.name }}" /></div>
+      <div class="align-end"><button class="btn btn-secondary" type="submit">{{ t('orders.save') }}</button></div>
+    </form>
+    <form method="post" action="/dict/clients/{{ c.id }}/delete" class="field-gap" onsubmit="return confirm('{{ t('admin.delete_confirm') }}')">
+      <button class="btn btn-danger" type="submit" {% if used %}disabled title="{{ t('admin.err_in_use') }}"{% endif %}>{{ t('admin.delete') }}</button>
+    </form>
+  </details>
   {% else %}
   <p class="muted order-empty">{{ t('dict.empty') }}</p>
   {% endfor %}

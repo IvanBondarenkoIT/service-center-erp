@@ -367,6 +367,31 @@ textarea { min-height: 64px; resize: vertical; }
   padding: 0 0.65rem;
 }
 
+.btn-danger {
+  background: #fff;
+  border-color: #b3261e;
+  color: #b3261e;
+}
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.admin-card { border-left: 3px solid var(--ink); }
+
+.inline-form { display: inline; }
+
+.dict-row > summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; gap: 0.15rem; }
+.dict-row > summary::-webkit-details-marker { display: none; }
+.dict-row[open] { background: var(--bg); }
+
+.check-row { display: flex; align-items: center; gap: 0.5rem; }
+.check-row input { width: auto; min-height: 0; }
+
+.row-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { text-align: left; padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+.admin-table .muted { font-size: 0.85em; }
+
 table.data {
   width: 100%;
   border-collapse: collapse;

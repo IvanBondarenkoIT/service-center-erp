@@ -4,6 +4,7 @@
 <div class="toolbar">
   <h1>{{ t('nav.machines') }}</h1>
 </div>
+{% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
 <form method="get" class="order-filters">
   <div class="search-field">
     <label for="machine-search">{{ t('orders.search') }}</label>
@@ -22,14 +23,27 @@
 </form>
 <div class="order-list">
   {% for m in machines %}
-  <div class="sheet-row">
-    <div class="order-card-top">
-      <span class="order-sn">SN: {{ m.serial_number }}</span>
-      {% if m.needs_serial %}<span class="badge warn">{{ t('orders.needs_sn') }}</span>{% endif %}
-    </div>
-    <span class="order-model">{{ m.model_name or '—' }}</span>
-    {% if m.erp_goods_id %}<span class="order-sn">ERP #{{ m.erp_goods_id }}</span>{% endif %}
-  </div>
+  {% set used = order_counts.get(m.id, 0) %}
+  <details class="sheet-row dict-row">
+    <summary>
+      <div class="order-card-top">
+        <span class="order-sn">SN: {{ m.serial_number }}</span>
+        {% if m.needs_serial %}<span class="badge warn">{{ t('orders.needs_sn') }}</span>{% endif %}
+        {% if used %}<span class="label-caps">{{ t('admin.orders_count', n=used) }}</span>{% endif %}
+      </div>
+      <span class="order-model">{{ m.model_name or '—' }}</span>
+      {% if m.erp_goods_id %}<span class="order-sn">ERP #{{ m.erp_goods_id }}</span>{% endif %}
+    </summary>
+    <form method="post" action="/dict/machines/{{ m.id }}/edit" class="grid-3 field-gap">
+      <div><label>{{ t('dict.serial') }}</label><input name="serial_number" required class="input-mono" value="{{ m.serial_number }}" /></div>
+      <div><label>{{ t('dict.model') }}</label><input name="model_name" value="{{ m.model_name }}" /></div>
+      <div><label>{{ t('dict.erp_id') }}</label><input name="erp_goods_id" class="input-mono" value="{{ m.erp_goods_id or '' }}" /></div>
+      <div class="align-end"><button class="btn btn-secondary" type="submit">{{ t('orders.save') }}</button></div>
+    </form>
+    <form method="post" action="/dict/machines/{{ m.id }}/delete" class="field-gap" onsubmit="return confirm('{{ t('admin.delete_confirm') }}')">
+      <button class="btn btn-danger" type="submit" {% if used %}disabled title="{{ t('admin.err_in_use') }}"{% endif %}>{{ t('admin.delete') }}</button>
+    </form>
+  </details>
   {% else %}
   <p class="muted order-empty">{{ t('dict.empty') }}</p>
   {% endfor %}

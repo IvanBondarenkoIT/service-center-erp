@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user, require_admin, require_admin_screen
-from app.models import Client, IssueReason, Machine, User
+from app.models import Client, ClientMachine, IssueReason, Machine, ServiceOrder, User
+from app.services.audit import diff_text, log_action
 from app.services.erp_clients import count_cached_clients
 from app.services.erp_sync import (
     count_cached_goods,
@@ -21,10 +22,18 @@ from app.templating import templates
 router = APIRouter(prefix="/dict", tags=["dictionaries"])
 
 
+def _order_counts(db: Session, column) -> dict[int, int]:
+    rows = db.execute(
+        select(column, func.count(ServiceOrder.id)).where(column.is_not(None)).group_by(column)
+    )
+    return {row[0]: row[1] for row in rows}
+
+
 @router.get("/clients", response_class=HTMLResponse)
 def clients_list(
     request: Request,
     q: str = Query(""),
+    error: str = Query(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin_screen),
 ):
@@ -40,8 +49,60 @@ def clients_list(
     return templates.TemplateResponse(
         request,
         "dictionaries/clients.html",
-        {"user": user, "clients": clients, "q": q},
+        {
+            "user": user,
+            "clients": clients,
+            "q": q,
+            "error": error,
+            "order_counts": _order_counts(db, ServiceOrder.client_id),
+        },
     )
+
+
+@router.post("/clients/{client_id}/edit")
+def client_update(
+    client_id: int,
+    name: str = Form(""),
+    phone: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    client = db.get(Client, client_id)
+    if not client:
+        raise HTTPException(404)
+    phone_n = normalize_phone(phone)
+    if not phone_n:
+        return RedirectResponse("/dict/clients?error=admin.err_phone", status_code=303)
+    other = db.scalar(select(Client).where(Client.phone == phone_n, Client.id != client.id))
+    if other:
+        return RedirectResponse("/dict/clients?error=admin.err_phone_taken", status_code=303)
+    before = {"name": client.name, "phone": client.phone}
+    client.name = name.strip() or phone_n
+    client.phone = phone_n
+    details = diff_text(before, {"name": client.name, "phone": client.phone})
+    if details:
+        log_action(db, user, "edit", "client", client.id, details)
+    db.commit()
+    return RedirectResponse("/dict/clients", status_code=303)
+
+
+@router.post("/clients/{client_id}/delete")
+def client_delete(
+    client_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    client = db.get(Client, client_id)
+    if not client:
+        raise HTTPException(404)
+    if db.scalar(select(func.count(ServiceOrder.id)).where(ServiceOrder.client_id == client.id)):
+        return RedirectResponse("/dict/clients?error=admin.err_in_use", status_code=303)
+    details = f"{client.name}; {client.phone}"
+    db.execute(delete(ClientMachine).where(ClientMachine.client_id == client.id))
+    db.delete(client)
+    log_action(db, user, "delete", "client", client_id, details)
+    db.commit()
+    return RedirectResponse("/dict/clients", status_code=303)
 
 
 @router.post("/clients")
@@ -68,6 +129,7 @@ def clients_create(
 def machines_list(
     request: Request,
     q: str = Query(""),
+    error: str = Query(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin_screen),
 ):
@@ -83,8 +145,73 @@ def machines_list(
     return templates.TemplateResponse(
         request,
         "dictionaries/machines.html",
-        {"user": user, "machines": machines, "q": q},
+        {
+            "user": user,
+            "machines": machines,
+            "q": q,
+            "error": error,
+            "order_counts": _order_counts(db, ServiceOrder.machine_id),
+        },
     )
+
+
+@router.post("/machines/{machine_id}/edit")
+def machine_update(
+    machine_id: int,
+    serial_number: str = Form(...),
+    model_name: str = Form(""),
+    erp_goods_id: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    machine = db.get(Machine, machine_id)
+    if not machine:
+        raise HTTPException(404)
+    serial = serial_number.strip()
+    if not serial:
+        return RedirectResponse("/dict/machines?error=admin.err_serial", status_code=303)
+    other = db.scalar(
+        select(Machine).where(Machine.serial_number == serial, Machine.id != machine.id)
+    )
+    if other:
+        return RedirectResponse("/dict/machines?error=admin.err_serial_taken", status_code=303)
+    erp_raw = erp_goods_id.strip()
+    before = {
+        "serial": machine.serial_number,
+        "model": machine.model_name,
+        "erp_id": machine.erp_goods_id,
+    }
+    machine.serial_number = serial
+    machine.model_name = model_name.strip()
+    machine.erp_goods_id = int(erp_raw) if erp_raw.isdigit() else None
+    machine.needs_serial = serial.startswith("NEED-SERIAL-")
+    details = diff_text(
+        before,
+        {"serial": machine.serial_number, "model": machine.model_name, "erp_id": machine.erp_goods_id},
+    )
+    if details:
+        log_action(db, user, "edit", "machine", machine.id, details)
+    db.commit()
+    return RedirectResponse("/dict/machines", status_code=303)
+
+
+@router.post("/machines/{machine_id}/delete")
+def machine_delete(
+    machine_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    machine = db.get(Machine, machine_id)
+    if not machine:
+        raise HTTPException(404)
+    if db.scalar(select(func.count(ServiceOrder.id)).where(ServiceOrder.machine_id == machine.id)):
+        return RedirectResponse("/dict/machines?error=admin.err_in_use", status_code=303)
+    details = f"{machine.serial_number}; {machine.model_name}"
+    db.execute(delete(ClientMachine).where(ClientMachine.machine_id == machine.id))
+    db.delete(machine)
+    log_action(db, user, "delete", "machine", machine_id, details)
+    db.commit()
+    return RedirectResponse("/dict/machines", status_code=303)
 
 
 @router.post("/machines")
@@ -121,6 +248,7 @@ def machines_create(
 @router.get("/reasons", response_class=HTMLResponse)
 def reasons_list(
     request: Request,
+    error: str = Query(""),
     db: Session = Depends(get_db),
     user: User = Depends(require_admin_screen),
 ):
@@ -128,8 +256,58 @@ def reasons_list(
     return templates.TemplateResponse(
         request,
         "dictionaries/reasons.html",
-        {"user": user, "reasons": reasons},
+        {
+            "user": user,
+            "reasons": reasons,
+            "error": error,
+            "order_counts": _order_counts(db, ServiceOrder.issue_reason_id),
+        },
     )
+
+
+@router.post("/reasons/{reason_id}/edit")
+def reason_update(
+    reason_id: int,
+    name: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    reason = db.get(IssueReason, reason_id)
+    if not reason:
+        raise HTTPException(404)
+    name = name.strip()
+    if not name:
+        return RedirectResponse("/dict/reasons", status_code=303)
+    other = db.scalar(
+        select(IssueReason).where(IssueReason.name == name, IssueReason.id != reason.id)
+    )
+    if other:
+        return RedirectResponse("/dict/reasons?error=admin.err_reason_taken", status_code=303)
+    if reason.name != name:
+        log_action(db, user, "edit", "reason", reason.id, f"{reason.name} → {name}")
+        reason.name = name
+    db.commit()
+    return RedirectResponse("/dict/reasons", status_code=303)
+
+
+@router.post("/reasons/{reason_id}/delete")
+def reason_delete(
+    reason_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    reason = db.get(IssueReason, reason_id)
+    if not reason:
+        raise HTTPException(404)
+    if db.scalar(
+        select(func.count(ServiceOrder.id)).where(ServiceOrder.issue_reason_id == reason.id)
+    ):
+        return RedirectResponse("/dict/reasons?error=admin.err_in_use", status_code=303)
+    name = reason.name
+    db.delete(reason)
+    log_action(db, user, "delete", "reason", reason_id, name)
+    db.commit()
+    return RedirectResponse("/dict/reasons", status_code=303)
 
 
 @router.post("/reasons")

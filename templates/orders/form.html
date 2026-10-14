@@ -159,7 +159,11 @@
   </section>
 </form>
 
-{% if order and order.status.value != 'issued' %}
+{% if read_only %}
+{% if order and order.status.value == 'issued' %}
+<p class="pay-done">{{ t('orders.paid_in_cash') }} <a href="/cash">{{ t('nav.cash') }}</a></p>
+{% endif %}
+{% elif order and order.status.value != 'issued' %}
 <form method="post" action="/orders/{{ order.id }}/pay" class="card pay-card">
   <p class="muted">{{ t('orders.pay_hint') }}</p>
   <label>{{ t('orders.pay_method') }}</label>
@@ -175,6 +179,34 @@
 </form>
 {% elif order and order.status.value == 'issued' %}
 <p class="pay-done">{{ t('orders.paid_in_cash') }} <a href="/cash">{{ t('nav.cash') }}</a></p>
+{% endif %}
+
+{% if order and user.role.value == 'admin' %}
+<section class="card admin-card stack">
+  <h2>{{ t('admin.order_block') }}</h2>
+  {% if order.status.value == 'issued' %}
+  <form method="post" action="/orders/{{ order.id }}/repay" class="stack">
+    <label>{{ t('admin.change_payment') }}</label>
+    <div class="chip-row" data-input="payment_type">
+      {% for p in pay_methods %}
+      <button type="button" class="chip {% if (current_payment and current_payment.value == p.value) or (not current_payment and loop.first) %}active{% endif %}" data-value="{{ p.value }}">
+        {{ t('payment_type.' + p.value) }}
+      </button>
+      {% endfor %}
+      <input type="hidden" name="payment_type" value="{{ current_payment.value if current_payment else pay_methods[0].value }}" />
+    </div>
+    <button class="btn btn-secondary" type="submit">{{ t('admin.change_payment_submit') }}</button>
+  </form>
+  <form method="post" action="/orders/{{ order.id }}/reopen" onsubmit="return confirm('{{ t('admin.reopen_confirm') }}')">
+    <p class="muted">{{ t('admin.reopen_hint') }}</p>
+    <button class="btn btn-secondary" type="submit">{{ t('admin.reopen') }}</button>
+  </form>
+  {% else %}
+  <form method="post" action="/orders/{{ order.id }}/delete" onsubmit="return confirm('{{ t('admin.delete_confirm') }}')">
+    <button class="btn btn-danger" type="submit">{{ t('admin.delete_order') }}</button>
+  </form>
+  {% endif %}
+</section>
 {% endif %}
 
 {% if not locked %}

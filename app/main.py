@@ -10,7 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.config import get_settings, validate_production_settings
 from app.database import Base, SessionLocal, engine
 from app.deps import AccountantOnlyCash, NotAuthenticated
-from app.routers import auth, cash, dictionaries, orders, reports
+from app.routers import admin, auth, cash, dictionaries, orders, reports
 from app.services.seed import seed_defaults
 from app.services.db_migrate import ensure_schema
 
@@ -39,6 +39,7 @@ app.include_router(orders.router)
 app.include_router(dictionaries.router)
 app.include_router(reports.router)
 app.include_router(cash.router)
+app.include_router(admin.router)
 
 
 @app.on_event("startup")

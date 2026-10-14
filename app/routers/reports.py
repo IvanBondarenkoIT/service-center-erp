@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
-from app.deps import require_admin
+from app.deps import require_admin_or_accountant
 from app.models import Machine, ServiceCenter, ServiceOrder, User
 from app.services.cash_book import build_cash_report
 from app.templating import templates
@@ -24,7 +24,7 @@ def reports_home(
     date_to: str = Query(""),
     center_id: int | None = Query(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    user: User = Depends(require_admin_or_accountant),
 ):
     today = date.today()
     d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)

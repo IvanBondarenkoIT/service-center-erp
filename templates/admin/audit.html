@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin.audit') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('admin.audit') }}</h1>
+</div>
+
+<div class="chip-row">
+  <a class="chip {% if not entity %}active{% endif %}" href="/admin/audit">{{ t('admin.audit_all') }}</a>
+  {% for e in entities %}
+  <a class="chip {% if entity == e %}active{% endif %}" href="/admin/audit?entity={{ e }}">{{ t('audit.entity.' + e) }}</a>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>{{ t('cash.date') }}</th>
+        <th>{{ t('admin.who') }}</th>
+        <th>{{ t('admin.what') }}</th>
+        <th>{{ t('admin.details') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in entries %}
+      <tr>
+        <td class="input-mono">{{ a.created_at.strftime('%d.%m.%Y %H:%M') if a.created_at else '' }}</td>
+        <td>{{ (a.user.full_name or a.user.login) if a.user else '—' }}</td>
+        <td>
+          {{ t('audit.action.' + a.action) }} · {{ t('audit.entity.' + a.entity) }}
+          {% if a.entity_id %}
+            {% if a.entity == 'order' and a.action != 'delete' %}<a href="/orders/{{ a.entity_id }}">#{{ a.entity_id }}</a>{% else %}#{{ a.entity_id }}{% endif %}
+          {% endif %}
+        </td>
+        <td class="muted">{{ a.details }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="muted">{{ t('dict.empty') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
