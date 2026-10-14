@@ -206,3 +206,22 @@ def erp_suggest(
         "partials/erp_suggest.html",
         {"user": user, "items": items, "q": q},
     )
+
+
+@router.get("/part-suggest", response_class=HTMLResponse)
+def part_suggest(
+    request: Request,
+    description: str = Query(""),
+    line_type: str = Query(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    q = description.strip()
+    items = []
+    if line_type == "part" and len(q) >= 2:
+        items = search_cached_goods(db, q, kind="part", limit=15)
+    return templates.TemplateResponse(
+        request,
+        "partials/part_suggest.html",
+        {"user": user, "items": items},
+    )

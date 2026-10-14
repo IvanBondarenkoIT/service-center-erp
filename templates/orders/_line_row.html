@@ -39,9 +39,17 @@
   {% else %}
   <input type="hidden" name="is_warranty" value="0" />
   {% endif %}
-  <input type="text" name="description" placeholder="{{ t('orders.lines') }}"
-    value="{% if line %}{{ line.description }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
-  <input type="text" name="part_code" class="input-mono line-part-code" placeholder="{{ t('orders.part_code') }}"
+  <input type="text" name="description" placeholder="{{ t('orders.lines') }}" autocomplete="off"
+    value="{% if line %}{{ line.description }}{% endif %}" {% if locked|default(false) %}readonly{% endif %}
+    {% if not locked|default(false) and not is_expense %}
+    hx-get="/dict/part-suggest"
+    hx-trigger="keyup changed delay:300ms"
+    hx-include="closest [data-line-card]"
+    hx-target="next .line-part-suggest"
+    hx-sync="this:replace"
+    {% endif %} />
+  <div class="line-part-suggest"></div>
+  <input type="text" name="part_code" class="input-mono line-part-code" placeholder="{{ t('orders.part_code') }}" autocomplete="off"
     value="{% if line %}{{ line.part_code }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
   <input type="hidden" name="payment_type" value="{% if is_warranty %}garanty{% elif line %}{{ line.payment_type.value }}{% else %}Cash{% endif %}" />
   <div class="field-gap line-amount-wrap{% if is_warranty %} is-warranty{% endif %}">

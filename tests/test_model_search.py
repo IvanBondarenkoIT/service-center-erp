@@ -72,3 +72,24 @@ def test_erp_suggest_endpoint_normalized(client) -> None:
     assert "onclick" not in r.text
     assert 'data-erp-id="' in r.text
     assert 'data-model-name="Delonghi ECAM 22.110.B"' in r.text
+
+
+def test_part_suggest_only_for_part_lines(client) -> None:
+    part_id = _BASE_ID + 100
+    db = SessionLocal()
+    try:
+        db.execute(delete(ErpGoodsCache).where(ErpGoodsCache.erp_goods_id == part_id))
+        db.add(ErpGoodsCache(erp_goods_id=part_id, name="Pump Ulka EX5 test", kind="part", is_active=True))
+        db.commit()
+    finally:
+        db.close()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    part = client.get("/dict/part-suggest", params={"description": "ulka ex5", "line_type": "part"})
+    assert part.status_code == 200
+    assert f'data-part-id="{part_id}"' in part.text
+    assert 'data-part-name="Pump Ulka EX5 test"' in part.text
+    work = client.get("/dict/part-suggest", params={"description": "ulka ex5", "line_type": "work"})
+    assert "data-part-id" not in work.text
+    row = client.get("/orders/partials/line-row")
+    assert 'hx-get="/dict/part-suggest"' in row.text
+    assert "line-part-suggest" in row.text

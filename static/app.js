@@ -21,7 +21,24 @@ function applyErpModel(erpId, name) {
   if (box) box.replaceChildren();
 }
 
+function applyErpPart(pick) {
+  const card = pick.closest("[data-line-card]");
+  if (!card) return;
+  const desc = card.querySelector('input[name="description"]');
+  const code = card.querySelector('input[name="part_code"]');
+  if (desc) desc.value = pick.dataset.partName || "";
+  if (code) code.value = pick.dataset.partId || "";
+  const box = card.querySelector(".line-part-suggest");
+  if (box) box.replaceChildren();
+}
+
 function pickErpModel(event) {
+  const part = event.target.closest("[data-part-id]");
+  if (part) {
+    event.preventDefault();
+    applyErpPart(part);
+    return;
+  }
   const pick = event.target.closest("[data-erp-id]");
   if (!pick) return;
   event.preventDefault();
@@ -85,6 +102,10 @@ document.addEventListener("click", (event) => {
   chip.classList.add("active");
   const input = row.querySelector('input[type="hidden"]');
   if (input) input.value = chip.dataset.value;
+  if (input && input.name === "line_type" && input.value !== "part") {
+    const box = chip.closest("[data-line-card]")?.querySelector(".line-part-suggest");
+    if (box) box.replaceChildren();
+  }
   if (input && input.name === "kind") {
     const sub = document.getElementById("collection-subtype");
     if (sub) sub.hidden = input.value !== "collection";
