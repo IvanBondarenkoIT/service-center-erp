@@ -351,7 +351,12 @@ def build_cash_report(
         for line in order.lines:
             if line.payment_type not in VAL_METHODS:
                 continue
-            buckets[line.payment_type.value] += money(line.amount_work) + money(line.amount_parts)
+            amount = (
+                money(line.val_amount)
+                if line.payment_type == PaymentType.promo
+                else money(line.client_amount)
+            )
+            buckets[line.payment_type.value] += amount
         if all(amount == ZERO for amount in buckets.values()):
             continue
         assignee = (

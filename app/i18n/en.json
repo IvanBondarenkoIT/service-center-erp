@@ -105,7 +105,8 @@
     "part": "Part",
     "expense": "Expense",
     "warranty": "Warranty",
-    "diagnostic": "Diagnostic"
+    "diagnostic": "Diagnostic",
+    "promo": "Promo"
   },
     "payment_type": {
     "Cash": "Cash",
@@ -153,8 +154,14 @@
     "sn_missing": "Serial number is required",
     "pay": "Pay",
     "pay_method": "Payment method",
-    "pay_hint": "Amounts stay out of cash until you tap Pay. After payment the order becomes Issued.",
-    "paid_in_cash": "Paid. The amount is in the cash report."
+    "pay_hint": "Each line has its own payment method. Pay only issues the order: amounts then go to the till and gross.",
+    "paid_in_cash": "Paid. The amount is in the cash report.",
+    "pay_summary": "Payment summary",
+    "client_pay": "Due",
+    "val_amount": "Gross",
+    "promo": "Promo offer",
+    "promo_pick": "Choose an offer",
+    "line_description": "Description"
   },
   "reports": {
     "title": "Summary reports",
@@ -217,6 +224,11 @@
     "openings_hint": "When needed: actual cash in the till on the morning of the date. Between reconciliations the balance is computed; differences show in the report. Days before the last reconciliation are closed for mechanics.",
     "opening_save": "Save balance",
     "users": "Users",
+    "prices": "Promos and prices",
+    "promo_new": "New promo",
+    "diagnostic_hint": "Filled into a Diagnostic line; the mechanic may change it.",
+    "edit_line_pay": "Change the payment method on each line and save.",
+    "err_promo_name": "Promo name is required",
     "user_new": "New user",
     "login": "Login",
     "password": "Password",
@@ -260,7 +272,8 @@
       "user": "User",
       "client": "Client",
       "machine": "Machine",
-      "reason": "Reason"
+      "reason": "Reason",
+      "promo": "Promo"
     }
   },
   "intake": {

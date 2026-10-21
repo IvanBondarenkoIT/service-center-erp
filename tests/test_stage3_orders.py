@@ -142,17 +142,13 @@ def test_issued_status_on_card(client) -> None:
     assert still_open is not None
     assert still_open.status == OrderStatus.in_progress
 
-    paid = client.post(
-        f"/orders/{oid}/pay",
-        data={"payment_type": "Card"},
-        follow_redirects=False,
-    )
+    paid = client.post(f"/orders/{oid}/pay", follow_redirects=False)
     assert paid.status_code == 303
     order = _load_order(oid)
     assert order is not None
     assert order.status == OrderStatus.issued
     assert order.paid_at is not None
-    assert order.lines[0].payment_type == PaymentType.card
+    assert order.lines[0].payment_type == PaymentType.cash
     listing = client.get("/", params={"status": "all"})
     assert 'data-status="issued"' in listing.text
     assert "Выдан" in listing.text

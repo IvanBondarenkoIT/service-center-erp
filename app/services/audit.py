@@ -7,7 +7,16 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import AuditLog, User
 
-ENTITIES = ("order", "cash_entry", "cash_opening", "user", "client", "machine", "reason")
+ENTITIES = (
+    "order",
+    "cash_entry",
+    "cash_opening",
+    "user",
+    "client",
+    "machine",
+    "reason",
+    "promo",
+)
 
 
 def log_action(

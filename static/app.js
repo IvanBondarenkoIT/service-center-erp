@@ -50,6 +50,7 @@ document.addEventListener("click", pickErpModel);
 
 function syncLineWarranty(card, on) {
   if (!card) return;
+  if ((card.querySelector('input[name="line_type"]')?.value || "") === "promo") return;
   const wrap = card.querySelector(".line-amount-wrap");
   const amount = card.querySelector('input[name="amount"]');
   const pay = card.querySelector('input[name="payment_type"]');
@@ -59,6 +60,65 @@ function syncLineWarranty(card, on) {
     amount.readOnly = on;
   }
   if (pay) pay.value = on ? "garanty" : "Cash";
+  if (!on) {
+    card.querySelectorAll(".line-pay-row button.chip").forEach((el) => {
+      el.classList.toggle("active", el.dataset.value === "Cash");
+      el.disabled = false;
+    });
+  }
+}
+
+function applyPromo(card) {
+  if (!card) return;
+  const select = card.querySelector('select[name="promo_id"]');
+  const opt = select && select.selectedOptions[0];
+  const desc = card.querySelector('input[name="description"]');
+  const amount = card.querySelector('input[name="amount"]');
+  const val = card.querySelector(".line-val-wrap input");
+  const pay = card.querySelector('input[name="payment_type"]');
+  if (opt && opt.value) {
+    if (desc) desc.value = opt.dataset.name || "";
+    if (amount) amount.value = opt.dataset.client || "0";
+    if (val) val.value = opt.dataset.val || "0";
+  }
+  if (pay) pay.value = "promo";
+  if (amount) amount.readOnly = true;
+}
+
+function syncLineKind(card) {
+  if (!card) return;
+  const kind = card.querySelector('input[name="line_type"]')?.value || "work";
+  card.dataset.kind = kind;
+  const amount = card.querySelector('input[name="amount"]');
+  const pay = card.querySelector('input[name="payment_type"]');
+  const desc = card.querySelector('input[name="description"]');
+  const box = card.querySelector(".line-part-suggest");
+  if (kind !== "part" && box) box.replaceChildren();
+  if (kind === "promo") {
+    const w = card.querySelector('input[name="is_warranty"]');
+    if (w) w.value = "0";
+    card.querySelector(".chip-line-warranty")?.classList.remove("active");
+    applyPromo(card);
+    return;
+  }
+  const locked = Boolean(card.closest(".is-locked"));
+  const warrantyOn = card.querySelector('input[name="is_warranty"]')?.value === "1";
+  if (amount) amount.readOnly = warrantyOn || locked;
+  if (kind === "diagnostic") {
+    const body = card.closest("#lines-body");
+    const label = body?.dataset.diagnosticLabel || "";
+    const price = body?.dataset.diagnosticPrice || "0";
+    if (desc && !desc.value.trim()) desc.value = label;
+    if (amount && (amount.value === "" || amount.value === "0" || amount.value === "0.00")) {
+      amount.value = price;
+    }
+  }
+  if (pay && pay.value === "promo") {
+    pay.value = "Cash";
+    card.querySelectorAll(".line-pay-row button.chip").forEach((el) => {
+      el.classList.toggle("active", el.dataset.value === "Cash");
+    });
+  }
 }
 
 function fillClientName(name, force) {
@@ -66,6 +126,11 @@ function fillClientName(name, force) {
   if (!nameInput || !name) return;
   if (force || !nameInput.value.trim()) nameInput.value = name;
 }
+
+document.addEventListener("change", (event) => {
+  const sel = event.target.closest('select[name="promo_id"]');
+  if (sel) applyPromo(sel.closest("[data-line-card]"));
+});
 
 document.addEventListener("htmx:afterSwap", (event) => {
   const found = event.target && event.target.querySelector
@@ -102,9 +167,8 @@ document.addEventListener("click", (event) => {
   chip.classList.add("active");
   const input = row.querySelector('input[type="hidden"]');
   if (input) input.value = chip.dataset.value;
-  if (input && input.name === "line_type" && input.value !== "part") {
-    const box = chip.closest("[data-line-card]")?.querySelector(".line-part-suggest");
-    if (box) box.replaceChildren();
+  if (input && input.name === "line_type") {
+    syncLineKind(chip.closest("[data-line-card]"));
   }
   if (input && input.name === "kind") {
     const sub = document.getElementById("collection-subtype");

@@ -644,6 +644,36 @@ button.chip-line-diagnostic.active {
   color: #fff8e8;
 }
 
+.chip-line-promo {
+  border-color: #6b3d6a;
+  color: #6b3d6a;
+}
+button.chip-line-promo.active {
+  background: #6b3d6a;
+  border-color: #6b3d6a;
+  color: #fff;
+}
+
+.line-card[data-kind="work"] .line-part-code,
+.line-card[data-kind="work"] .line-part-suggest,
+.line-card[data-kind="work"] .line-promo-wrap,
+.line-card[data-kind="work"] .line-val-wrap,
+.line-card[data-kind="part"] .line-promo-wrap,
+.line-card[data-kind="part"] .line-val-wrap,
+.line-card[data-kind="diagnostic"] .line-part-code,
+.line-card[data-kind="diagnostic"] .line-part-suggest,
+.line-card[data-kind="diagnostic"] .line-promo-wrap,
+.line-card[data-kind="diagnostic"] .line-val-wrap,
+.line-card[data-kind="promo"] .line-part-code,
+.line-card[data-kind="promo"] .line-part-suggest,
+.line-card[data-kind="promo"] .line-pay-row,
+.line-card[data-kind="promo"] .line-warranty-row,
+.line-card[data-kind="expense"] .line-promo-wrap,
+.line-card[data-kind="expense"] .line-pay-row,
+.line-card[data-kind="expense"] .line-val-wrap {
+  display: none;
+}
+
 .chip-line-expense {
   border-color: #8b1e1e;
   color: #8b1e1e;

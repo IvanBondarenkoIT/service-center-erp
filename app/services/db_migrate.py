@@ -21,12 +21,14 @@ def _column_names(insp, table: str) -> set[str]:
 def ensure_schema() -> None:
     """Create new tables and add columns/enum values create_all will not alter."""
     from app.models import (  # noqa: F401
+        AppSetting,
         AuditLog,
         CashEntry,
         CashOpening,
         ErpClientCache,
         ErpGoodsCache,
         ErpSyncState,
+        PromoOffer,
     )
 
     insp = inspect(engine)
@@ -45,6 +47,10 @@ def ensure_schema() -> None:
         CashOpening.__table__.create(bind=engine, checkfirst=True)
     if "audit_log" not in existing:
         AuditLog.__table__.create(bind=engine, checkfirst=True)
+    if "promo_offers" not in existing:
+        PromoOffer.__table__.create(bind=engine, checkfirst=True)
+    if "app_settings" not in existing:
+        AppSetting.__table__.create(bind=engine, checkfirst=True)
 
     insp = inspect(engine)
     tables = set(insp.get_table_names())
@@ -52,6 +58,7 @@ def ensure_schema() -> None:
     user_cols = _column_names(insp, "users")
     order_cols = _column_names(insp, "service_orders")
     opening_cols = _column_names(insp, "cash_openings")
+    line_cols = _column_names(insp, "order_lines")
 
     with engine.begin() as conn:
         if "erp_goods_cache" in tables:
@@ -92,9 +99,29 @@ def ensure_schema() -> None:
                 "ALTER TABLE users ADD COLUMN locale VARCHAR(8) NOT NULL DEFAULT 'ru'",
             )
 
+        if "order_lines" in tables:
+            if "val_amount" not in line_cols:
+                _try_alter(
+                    conn,
+                    "ALTER TABLE order_lines ADD COLUMN val_amount NUMERIC(12, 2) NOT NULL DEFAULT 0",
+                )
+                _try_alter(
+                    conn,
+                    "UPDATE order_lines SET val_amount = COALESCE(amount_work, 0) + COALESCE(amount_parts, 0)",
+                )
+            if "promo_id" not in line_cols:
+                if dialect == "postgresql":
+                    _try_alter(
+                        conn,
+                        "ALTER TABLE order_lines ADD COLUMN promo_id INTEGER REFERENCES promo_offers(id)",
+                    )
+                else:
+                    _try_alter(conn, "ALTER TABLE order_lines ADD COLUMN promo_id INTEGER")
+
         if dialect == "postgresql":
             _try_alter(conn, "ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'accountant'")
             _try_alter(conn, "ALTER TYPE payment_type ADD VALUE IF NOT EXISTS 'promo'")
+            _try_alter(conn, "ALTER TYPE line_type ADD VALUE IF NOT EXISTS 'promo'")
             _try_alter(
                 conn,
                 "DO $$ BEGIN "

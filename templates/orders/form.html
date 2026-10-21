@@ -140,7 +140,9 @@
     <div class="toolbar">
       <h2>{{ t('orders.lines') }}</h2>
     </div>
-    <div id="lines-body" class="stack">
+    <div id="lines-body" class="stack"
+      data-diagnostic-price="{{ '%.2f'|format(diagnostic_price|default(0)) }}"
+      data-diagnostic-label="{{ t('line_type.diagnostic') }}">
       {% if order and order.lines %}
         {% for line in order.lines %}
           {% include "orders/_line_row.html" %}
@@ -159,26 +161,35 @@
   </section>
 </form>
 
-{% if read_only %}
-{% if order and order.status.value == 'issued' %}
-<p class="pay-done">{{ t('orders.paid_in_cash') }} <a href="/cash">{{ t('nav.cash') }}</a></p>
-{% endif %}
-{% elif order and order.status.value != 'issued' %}
-<form method="post" action="/orders/{{ order.id }}/pay" class="card pay-card">
+{% if order %}
+<section class="card pay-card">
+  <h2>{{ t('orders.pay_summary') }}</h2>
+  <p class="order-total">{{ t('orders.client_pay') }}: {{ '%.2f'|format(order.total_amount) }} {{ t('orders.currency') }}</p>
+  {% if pay_summary %}
+  <table class="data">
+    <tbody>
+      {% for row in pay_summary %}
+      <tr>
+        <td>{{ t('payment_type.' + row.method.value) }}</td>
+        {% if row.method.value == 'promo' %}
+        <td>{{ t('orders.client_pay') }} {{ '%.2f'|format(row.client) }} · {{ t('orders.val_amount') }} {{ '%.2f'|format(row.val) }}</td>
+        {% else %}
+        <td>{{ '%.2f'|format(row.client) }} {{ t('orders.currency') }}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+  {% if order.status.value != 'issued' and not read_only %}
   <p class="muted">{{ t('orders.pay_hint') }}</p>
-  <label>{{ t('orders.pay_method') }}</label>
-  <div class="chip-row" data-input="payment_type">
-    {% for p in pay_methods %}
-    <button type="button" class="chip {% if loop.first %}active{% endif %}" data-value="{{ p.value }}">
-      {{ t('payment_type.' + p.value) }}
-    </button>
-    {% endfor %}
-    <input type="hidden" name="payment_type" value="{{ pay_methods[0].value }}" />
-  </div>
-  <button class="btn btn-pay" type="submit">{{ t('orders.pay') }}</button>
-</form>
-{% elif order and order.status.value == 'issued' %}
-<p class="pay-done">{{ t('orders.paid_in_cash') }} <a href="/cash">{{ t('nav.cash') }}</a></p>
+  <form method="post" action="/orders/{{ order.id }}/pay">
+    <button class="btn btn-pay" type="submit">{{ t('orders.pay') }}</button>
+  </form>
+  {% elif order.status.value == 'issued' %}
+  <p class="pay-done">{{ t('orders.paid_in_cash') }} <a href="/cash">{{ t('nav.cash') }}</a></p>
+  {% endif %}
+</section>
 {% endif %}
 
 {% if order and user.role.value == 'admin' %}
@@ -186,18 +197,7 @@
   <h2>{{ t('admin.order_block') }}</h2>
   {% if order.status.value == 'issued' %}
   {% if closed_period %}<p class="notice-warn">{{ t('cash.closed_warning') }}</p>{% endif %}
-  <form method="post" action="/orders/{{ order.id }}/repay" class="stack"{% if closed_period %} onsubmit="return confirm('{{ t('cash.closed_warning') }}')"{% endif %}>
-    <label>{{ t('admin.change_payment') }}</label>
-    <div class="chip-row" data-input="payment_type">
-      {% for p in pay_methods %}
-      <button type="button" class="chip {% if (current_payment and current_payment.value == p.value) or (not current_payment and loop.first) %}active{% endif %}" data-value="{{ p.value }}">
-        {{ t('payment_type.' + p.value) }}
-      </button>
-      {% endfor %}
-      <input type="hidden" name="payment_type" value="{{ current_payment.value if current_payment else pay_methods[0].value }}" />
-    </div>
-    <button class="btn btn-secondary" type="submit">{{ t('admin.change_payment_submit') }}</button>
-  </form>
+  <p class="muted">{{ t('admin.edit_line_pay') }}</p>
   <form method="post" action="/orders/{{ order.id }}/reopen" onsubmit="return confirm('{% if closed_period %}{{ t('cash.closed_warning') }} {% endif %}{{ t('admin.reopen_confirm') }}')">
     <p class="muted">{{ t('admin.reopen_hint') }}</p>
     <button class="btn btn-secondary" type="submit">{{ t('admin.reopen') }}</button>

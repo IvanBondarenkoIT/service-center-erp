@@ -62,11 +62,7 @@ def _order_id(location: str) -> int:
 
 
 def _pay(client, order_id: int, payment_type: str = "Cash"):
-    return client.post(
-        f"/orders/{order_id}/pay",
-        data={"payment_type": payment_type},
-        follow_redirects=False,
-    )
+    return client.post(f"/orders/{order_id}/pay", follow_redirects=False)
 
 
 def _set_paid_at(order_id: int, day: str) -> None:
@@ -351,7 +347,7 @@ def test_pay_card_is_terminal_not_till(client) -> None:
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
     saved = client.post(
         "/orders/save",
-        data=_order_payload("mechanic_batumi", serial, "Cash", "18.50", "0"),
+        data=_order_payload("mechanic_batumi", serial, "Card", "18.50", "0"),
         follow_redirects=False,
     )
     assert saved.status_code == 303
@@ -389,7 +385,7 @@ def test_pay_transfer_is_separate_and_not_in_till(client) -> None:
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
     saved = client.post(
         "/orders/save",
-        data=_order_payload("mechanic_batumi", serial, "Cash", "42.00", "0"),
+        data=_order_payload("mechanic_batumi", serial, "perechisleniye", "42.00", "0"),
         follow_redirects=False,
     )
     oid = _order_id(saved.headers["location"])
@@ -424,26 +420,43 @@ def test_pay_transfer_is_separate_and_not_in_till(client) -> None:
 
 
 def test_pay_promo_counts_in_val_not_till(client) -> None:
+    from app.models import PromoOffer
     from app.services.cash_book import build_cash_report
 
-    serial = _serial()
-    login(client, "mechanic_batumi", settings.seed_mechanic_password)
-    saved = client.post(
-        "/orders/save",
-        data=_order_payload("mechanic_batumi", serial, "Cash", "25.00", "5.00"),
+    login(client, "admin", settings.seed_admin_password)
+    name = f"Clean {uuid.uuid4().hex[:6]}"
+    client.post(
+        "/admin/prices/promos",
+        data={"name": name, "client_amount": "0", "val_amount": "30.00", "is_active": "1"},
         follow_redirects=False,
     )
+    db = SessionLocal()
+    try:
+        offer_id = db.scalar(select(PromoOffer.id).where(PromoOffer.name == name))
+    finally:
+        db.close()
+    assert offer_id
+
+    serial = _serial()
+    payload = _order_payload("mechanic_batumi", serial, "promo", "0", "0")
+    payload["line_type"] = "promo"
+    payload["promo_id"] = str(offer_id)
+    payload["description"] = name
+    client.cookies.clear()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    saved = client.post("/orders/save", data=payload, follow_redirects=False)
     oid = _order_id(saved.headers["location"])
     form = client.get(f"/orders/{oid}")
     assert 'data-value="promo"' in form.text
-    assert "Promo" in form.text
-    assert _pay(client, oid, "promo").status_code == 303
+    assert _pay(client, oid).status_code == 303
     _set_paid_at(oid, DAY)
     batumi = _center_id("batumi")
     db = SessionLocal()
     try:
         order = db.get(ServiceOrder, oid)
         assert order.lines[0].payment_type == PaymentType.promo
+        assert order.lines[0].client_amount == Decimal("0")
+        assert order.lines[0].val_amount == Decimal("30.00")
         period = (date.fromisoformat(PERIOD_FROM), date.fromisoformat(PERIOD_TO))
         report = build_cash_report(db, *period, batumi)
         rows = [row for row in report.income_rows if row.note == serial]
@@ -464,7 +477,7 @@ def test_pay_promo_counts_in_val_not_till(client) -> None:
     assert "Акция" in page.text
 
 
-def test_pay_rejects_non_payment_methods(client) -> None:
+def test_pay_does_not_overwrite_line_method(client) -> None:
     serial = _serial()
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
     saved = client.post(
@@ -473,8 +486,15 @@ def test_pay_rejects_non_payment_methods(client) -> None:
         follow_redirects=False,
     )
     oid = _order_id(saved.headers["location"])
-    assert _pay(client, oid, "rasxod").status_code == 400
-    assert _pay(client, oid, "garanty").status_code == 400
+    assert _pay(client, oid).status_code == 303
+    db = SessionLocal()
+    try:
+        order = db.get(ServiceOrder, oid)
+        assert order.lines[0].payment_type == PaymentType.cash
+        assert order.status == OrderStatus.issued
+    finally:
+        db.close()
+    assert _pay(client, oid).status_code == 400
 
 
 def test_pay_today_shows_in_todays_cash(client) -> None:

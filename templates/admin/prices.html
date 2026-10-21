@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin.prices') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('admin.prices') }}</h1>
+</div>
+{% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
+
+<form method="post" action="/admin/prices/diagnostic" class="card stack">
+  <h2>{{ t('line_type.diagnostic') }}</h2>
+  <div>
+    <label>{{ t('orders.amount') }}, {{ t('orders.currency') }}</label>
+    <input type="number" step="0.01" name="amount" class="input-mono input-amount" required value="{{ '%.2f'|format(diagnostic_price) }}" />
+  </div>
+  <p class="muted">{{ t('admin.diagnostic_hint') }}</p>
+  <button class="btn btn-secondary" type="submit">{{ t('orders.save') }}</button>
+</form>
+
+<form method="post" action="/admin/prices/promos" class="card stack">
+  <h2>{{ t('admin.promo_new') }}</h2>
+  <div class="grid-3">
+    <div><label>{{ t('dict.name') }}</label><input name="name" required /></div>
+    <div><label>{{ t('orders.client_pay') }}</label><input type="number" step="0.01" name="client_amount" class="input-mono" value="0" /></div>
+    <div><label>{{ t('orders.val_amount') }}</label><input type="number" step="0.01" name="val_amount" class="input-mono" value="0" /></div>
+  </div>
+  <label class="check-row">
+    <input type="checkbox" name="is_active" value="1" checked />
+    {{ t('admin.active') }}
+  </label>
+  <button class="btn" type="submit">{{ t('dict.add') }}</button>
+</form>
+
+<div class="order-list">
+  {% for p in promos %}
+  {% set used = promo_counts.get(p.id, 0) %}
+  <details class="sheet-row dict-row">
+    <summary>
+      <span class="order-model">{{ p.name }}</span>
+      <span class="label-caps">{% if p.is_active %}{{ t('admin.active') }}{% else %}{{ t('admin.no') }}{% endif %}{% if used %} · {{ t('admin.orders_count', n=used) }}{% endif %}</span>
+      <span class="order-sn">{{ t('orders.client_pay') }} {{ '%.2f'|format(p.client_amount) }} · {{ t('orders.val_amount') }} {{ '%.2f'|format(p.val_amount) }}</span>
+    </summary>
+    <form method="post" action="/admin/prices/promos/{{ p.id }}" class="stack field-gap">
+      <div class="grid-3">
+        <div><label>{{ t('dict.name') }}</label><input name="name" required value="{{ p.name }}" /></div>
+        <div><label>{{ t('orders.client_pay') }}</label><input type="number" step="0.01" name="client_amount" class="input-mono" value="{{ '%.2f'|format(p.client_amount) }}" /></div>
+        <div><label>{{ t('orders.val_amount') }}</label><input type="number" step="0.01" name="val_amount" class="input-mono" value="{{ '%.2f'|format(p.val_amount) }}" /></div>
+      </div>
+      <label class="check-row">
+        <input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %} />
+        {{ t('admin.active') }}
+      </label>
+      <button class="btn btn-secondary" type="submit">{{ t('orders.save') }}</button>
+    </form>
+  </details>
+  {% else %}
+  <p class="muted order-empty">{{ t('dict.empty') }}</p>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -70,7 +70,7 @@ def _create_order(client, amount: str = "40.00", login_name: str = "mechanic_bat
 def _paid_order(client, payment: str = "Cash") -> tuple[int, str]:
     login(client, "admin", settings.seed_admin_password)
     oid, serial = _create_order(client)
-    assert client.post(f"/orders/{oid}/pay", data={"payment_type": payment}, follow_redirects=False).status_code == 303
+    assert client.post(f"/orders/{oid}/pay", follow_redirects=False).status_code == 303
     db = SessionLocal()
     try:
         order = db.get(ServiceOrder, oid)
@@ -114,7 +114,7 @@ def test_admin_reopen_removes_from_cash_and_val(client) -> None:
 
     form = client.get(f"/orders/{oid}")
     assert f"/orders/{oid}/reopen" in form.text
-    assert f"/orders/{oid}/repay" in form.text
+    assert f"/orders/{oid}/repay" not in form.text
 
     r = client.post(f"/orders/{oid}/reopen", follow_redirects=False)
     assert r.status_code == 303
@@ -131,9 +131,30 @@ def test_admin_reopen_removes_from_cash_and_val(client) -> None:
     assert client.post(f"/orders/{oid}/reopen", follow_redirects=False).status_code == 400
 
 
-def test_admin_repay_keeps_paid_date(client) -> None:
+def test_admin_changes_line_payment_keeps_paid_date(client) -> None:
     oid, serial = _paid_order(client, "Cash")
-    r = client.post(f"/orders/{oid}/repay", data={"payment_type": "Card"}, follow_redirects=False)
+    user_id, center_id = user_ids("mechanic_batumi")
+    r = client.post(
+        "/orders/save",
+        data={
+            "order_id": str(oid),
+            "order_date": DAY.isoformat(),
+            "assignee_id": str(user_id),
+            "service_center_id": str(center_id or ""),
+            "new_machine_serial": serial,
+            "new_machine_model": "Jura",
+            "new_client_phone": f"599{uuid.uuid4().int % 10_000_000:07d}",
+            "new_client_name": "Admin Test",
+            "line_type": "work",
+            "description": "repair",
+            "part_code": "",
+            "payment_type": "Card",
+            "is_warranty": "0",
+            "amount": "40.00",
+            "status": "issued",
+        },
+        follow_redirects=False,
+    )
     assert r.status_code == 303
     db = SessionLocal()
     try:
@@ -146,9 +167,8 @@ def test_admin_repay_keeps_paid_date(client) -> None:
     rows, _ = _report_rows(serial)
     assert len(rows) == 1
     assert rows[0].payment_type == PaymentType.card
-    assert _audit("order", oid, "repay")
-    bad = client.post(f"/orders/{oid}/repay", data={"payment_type": "rasxod"}, follow_redirects=False)
-    assert bad.status_code == 400
+    assert _audit("order", oid, "edit_issued")
+    assert client.post(f"/orders/{oid}/repay", data={"payment_type": "Card"}, follow_redirects=False).status_code == 404
 
 
 def test_delete_rules(client) -> None:

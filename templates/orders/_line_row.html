@@ -2,7 +2,8 @@
 {% set is_warranty = (line and (line.payment_type.value == 'garanty' or line.line_type.value == 'warranty')) %}
 {% set is_expense = raw_lt == 'expense' %}
 {% set lt = 'work' if raw_lt == 'warranty' else raw_lt %}
-<article class="line-card" data-line-card>
+{% set pay = line.payment_type if line and line.payment_type.value not in ('garanty', 'rasxod', 'promo') else pay_methods[0] %}
+<article class="line-card" data-line-card data-kind="{{ lt }}">
   <div class="line-card-head">
     <div class="chip-row" data-input="line_type">
       {% for typ in line_types %}
@@ -26,6 +27,7 @@
     </button>
     {% endif %}
   </div>
+
   {% if not is_expense %}
   <div class="chip-row line-warranty-row" data-toggle="is_warranty">
     <button type="button"
@@ -39,7 +41,24 @@
   {% else %}
   <input type="hidden" name="is_warranty" value="0" />
   {% endif %}
-  <input type="text" name="description" placeholder="{{ t('orders.lines') }}" autocomplete="off"
+
+  <div class="line-promo-wrap field-gap">
+    <label>{{ t('orders.promo') }}</label>
+    <select name="promo_id" {% if locked|default(false) %}disabled{% endif %}>
+      <option value="">{{ t('orders.promo_pick') }}</option>
+      {% for p in promos|default([]) %}
+      <option value="{{ p.id }}"
+        data-client="{{ '%.2f'|format(p.client_amount) }}"
+        data-val="{{ '%.2f'|format(p.val_amount) }}"
+        data-name="{{ p.name }}"
+        {% if line and line.promo_id == p.id %}selected{% endif %}>
+        {{ p.name }} · {{ t('orders.client_pay') }} {{ '%.2f'|format(p.client_amount) }} / {{ t('orders.val_amount') }} {{ '%.2f'|format(p.val_amount) }}
+      </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <input type="text" name="description" class="line-description" placeholder="{{ t('orders.line_description') }}" autocomplete="off"
     value="{% if line %}{{ line.description }}{% endif %}" {% if locked|default(false) %}readonly{% endif %}
     {% if not locked|default(false) and not is_expense %}
     hx-get="/dict/part-suggest"
@@ -51,11 +70,26 @@
   <div class="line-part-suggest"></div>
   <input type="text" name="part_code" class="input-mono line-part-code" placeholder="{{ t('orders.part_code') }}" autocomplete="off"
     value="{% if line %}{{ line.part_code }}{% endif %}" {% if locked|default(false) %}readonly{% endif %} />
-  <input type="hidden" name="payment_type" value="{% if is_warranty %}garanty{% elif line %}{{ line.payment_type.value }}{% else %}Cash{% endif %}" />
+
+  <div class="chip-row line-pay-row" data-input="payment_type">
+    {% for p in pay_methods|default([]) %}
+    <button type="button" class="chip {% if pay and pay.value == p.value %}active{% endif %}" data-value="{{ p.value }}"
+      {% if locked|default(false) or is_warranty %}disabled{% endif %}>
+      {{ t('payment_type.' + p.value) }}
+    </button>
+    {% endfor %}
+    <input type="hidden" name="payment_type" value="{% if is_warranty %}garanty{% elif lt == 'promo' %}promo{% elif line %}{{ line.payment_type.value }}{% else %}{{ pay_methods[0].value }}{% endif %}" />
+  </div>
+
   <div class="field-gap line-amount-wrap{% if is_warranty %} is-warranty{% endif %}">
-    <label>{{ t('orders.amount') }}, {{ t('orders.currency') }}</label>
+    <label>{{ t('orders.client_pay') }}, {{ t('orders.currency') }}</label>
     <input type="number" step="0.01" name="amount" class="input-mono input-amount"
-      value="{% if line and not is_warranty %}{% if lt == 'part' %}{{ line.amount_parts or 0 }}{% else %}{{ (line.amount_work or 0) + (line.amount_parts or 0) }}{% endif %}{% else %}0{% endif %}"
-      {% if is_warranty or locked|default(false) %}readonly{% endif %} />
+      value="{% if line %}{{ '%.2f'|format(line.client_amount) }}{% else %}0{% endif %}"
+      {% if is_warranty or locked|default(false) or lt == 'promo' %}readonly{% endif %} />
+  </div>
+  <div class="field-gap line-val-wrap">
+    <label>{{ t('orders.val_amount') }}, {{ t('orders.currency') }}</label>
+    <input type="text" class="input-mono input-amount" readonly
+      value="{% if line %}{{ '%.2f'|format(line.val_amount or line.client_amount) }}{% else %}0{% endif %}" />
   </div>
 </article>

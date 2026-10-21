@@ -2,19 +2,29 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
+
+from decimal import Decimal, InvalidOperation
 
 from app.auth import hash_password
 from app.database import get_db
 from app.deps import require_admin_screen
-from app.models import ServiceCenter, User, UserRole
+from app.models import OrderLine, PromoOffer, ServiceCenter, User, UserRole
 from app.services.audit import ENTITIES, diff_text, log_action, recent_audit
+from app.services.prices import diagnostic_price, set_diagnostic_price
 from app.templating import templates
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 MIN_PASSWORD = 6
+
+
+def _money(raw: str) -> Decimal:
+    try:
+        return Decimal(str(raw).replace(",", ".").strip() or "0")
+    except InvalidOperation:
+        return Decimal("0")
 
 
 def _centers(db: Session) -> list[ServiceCenter]:
@@ -197,3 +207,118 @@ def audit_page(
             "entity": entity,
         },
     )
+
+
+def _promo_counts(db: Session) -> dict[int, int]:
+    rows = db.execute(
+        select(OrderLine.promo_id, func.count(OrderLine.id))
+        .where(OrderLine.promo_id.is_not(None))
+        .group_by(OrderLine.promo_id)
+    )
+    return {row[0]: row[1] for row in rows}
+
+
+@router.get("/prices", response_class=HTMLResponse)
+def prices_page(
+    request: Request,
+    error: str = Query(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    promos = list(db.scalars(select(PromoOffer).order_by(PromoOffer.is_active.desc(), PromoOffer.name)))
+    return templates.TemplateResponse(
+        request,
+        "admin/prices.html",
+        {
+            "user": user,
+            "diagnostic_price": diagnostic_price(db),
+            "promos": promos,
+            "promo_counts": _promo_counts(db),
+            "error": error,
+        },
+    )
+
+
+@router.post("/prices/diagnostic")
+def diagnostic_price_save(
+    amount: str = Form("0"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    value = set_diagnostic_price(db, amount)
+    log_action(db, user, "set", "promo", None, f"diagnostic_price → {value}")
+    db.commit()
+    return RedirectResponse("/admin/prices", status_code=303)
+
+
+@router.post("/prices/promos")
+def promo_create(
+    name: str = Form(...),
+    client_amount: str = Form("0"),
+    val_amount: str = Form("0"),
+    is_active: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    name = name.strip()
+    if not name:
+        return RedirectResponse("/admin/prices?error=admin.err_promo_name", status_code=303)
+    offer = PromoOffer(
+        name=name,
+        client_amount=_money(client_amount),
+        val_amount=_money(val_amount),
+        is_active=is_active in {"1", "on", "true"},
+    )
+    db.add(offer)
+    db.flush()
+    log_action(
+        db,
+        user,
+        "create",
+        "promo",
+        offer.id,
+        f"{offer.name}; client {offer.client_amount}; val {offer.val_amount}",
+    )
+    db.commit()
+    return RedirectResponse("/admin/prices", status_code=303)
+
+
+@router.post("/prices/promos/{promo_id}")
+def promo_update(
+    promo_id: int,
+    name: str = Form(...),
+    client_amount: str = Form("0"),
+    val_amount: str = Form("0"),
+    is_active: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_screen),
+):
+    offer = db.get(PromoOffer, promo_id)
+    if not offer:
+        raise HTTPException(404)
+    name = name.strip()
+    if not name:
+        return RedirectResponse("/admin/prices?error=admin.err_promo_name", status_code=303)
+    before = {
+        "name": offer.name,
+        "client": offer.client_amount,
+        "val": offer.val_amount,
+        "active": offer.is_active,
+    }
+    offer.name = name
+    offer.client_amount = _money(client_amount)
+    offer.val_amount = _money(val_amount)
+    offer.is_active = is_active in {"1", "on", "true"}
+    details = diff_text(
+        before,
+        {
+            "name": offer.name,
+            "client": offer.client_amount,
+            "val": offer.val_amount,
+            "active": offer.is_active,
+        },
+    )
+    if details:
+        log_action(db, user, "edit", "promo", offer.id, details)
+    db.commit()
+    return RedirectResponse("/admin/prices", status_code=303)

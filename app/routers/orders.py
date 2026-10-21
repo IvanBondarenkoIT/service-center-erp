@@ -19,6 +19,7 @@ from app.models import (
     OrderLine,
     OrderStatus,
     PaymentType,
+    PromoOffer,
     ServiceCenter,
     ServiceOrder,
     User,
@@ -28,6 +29,7 @@ from app.services.audit import log_action
 from app.services.erp_clients import find_erp_client
 from app.services.phones import normalize_phone
 from app.services.cash_book import business_today, cash_date, lock_date
+from app.services.prices import active_promos, diagnostic_price
 from app.services.serial_scan import serial_from_scan
 from app.templating import templates
 
@@ -39,7 +41,8 @@ WORKFLOW_STATUSES = (
     OrderStatus.ready,
 )
 PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer, PaymentType.promo)
-FORM_LINE_TYPES = (LineType.work, LineType.part, LineType.diagnostic)
+LINE_PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer)
+FORM_LINE_TYPES = (LineType.work, LineType.part, LineType.diagnostic, LineType.promo)
 
 
 def _scoped_orders_query(user: User):
@@ -146,10 +149,13 @@ def _parse_lines_from_form(
     is_warranty: list[str],
     amount_work: list[str] | None = None,
     amount_parts: list[str] | None = None,
+    promo_id: list[str] | None = None,
+    db: Session | None = None,
 ) -> list[OrderLine]:
     lines: list[OrderLine] = []
     amount_work = amount_work or []
     amount_parts = amount_parts or []
+    promo_id = promo_id or []
     n = max(len(line_type), len(description), len(amount), 1)
 
     def pad(xs: list[str], size: int) -> list[str]:
@@ -163,6 +169,7 @@ def _parse_lines_from_form(
     is_warranty = pad(is_warranty, n)
     amount_work = pad(amount_work, n)
     amount_parts = pad(amount_parts, n)
+    promo_id = pad(promo_id, n)
 
     for i in range(n):
         desc = (description[i] or "").strip()
@@ -185,13 +192,33 @@ def _parse_lines_from_form(
         except ValueError:
             pt = PaymentType.cash
 
+        if lt == LineType.promo:
+            offer = None
+            raw_pid = (promo_id[i] or "").strip()
+            if db and raw_pid.isdigit():
+                offer = db.get(PromoOffer, int(raw_pid))
+            if not offer:
+                continue
+            lines.append(
+                OrderLine(
+                    line_type=LineType.promo,
+                    description=offer.name,
+                    part_code="",
+                    payment_type=PaymentType.promo,
+                    amount_work=offer.client_amount,
+                    amount_parts=Decimal("0"),
+                    val_amount=offer.val_amount,
+                    promo_id=offer.id,
+                )
+            )
+            continue
+
         if lt == LineType.warranty or pt == PaymentType.warranty:
             warranty_flag = True
             if lt == LineType.warranty:
                 lt = LineType.work
 
         if lt == LineType.expense:
-            # Legacy rows only — keep both amount columns as submitted.
             aw = _parse_decimal(amount_work[i] or amount[i])
             ap = _parse_decimal(amount_parts[i])
             if amount[i] and not amount_work[i] and not amount_parts[i]:
@@ -207,12 +234,15 @@ def _parse_lines_from_form(
                     payment_type=PaymentType.expense,
                     amount_work=aw,
                     amount_parts=ap,
+                    val_amount=Decimal("0"),
                 )
             )
             continue
 
         if lt not in FORM_LINE_TYPES:
             lt = LineType.work
+        if lt != LineType.part:
+            pc = ""
 
         if amount[i] not in ("", None):
             total = _parse_decimal(amount[i])
@@ -225,11 +255,11 @@ def _parse_lines_from_form(
             aw, ap = Decimal("0"), Decimal("0")
         elif lt == LineType.part:
             aw, ap = Decimal("0"), total
-            if pt == PaymentType.warranty:
+            if pt not in LINE_PAY_METHODS:
                 pt = PaymentType.cash
         else:
             aw, ap = total, Decimal("0")
-            if pt == PaymentType.warranty:
+            if pt not in LINE_PAY_METHODS:
                 pt = PaymentType.cash
 
         if not desc and not pc and aw == 0 and ap == 0 and not warranty_flag:
@@ -242,6 +272,7 @@ def _parse_lines_from_form(
                 payment_type=pt,
                 amount_work=aw,
                 amount_parts=ap,
+                val_amount=aw + ap,
             )
         )
     if not lines:
@@ -252,9 +283,24 @@ def _parse_lines_from_form(
                 payment_type=PaymentType.cash,
                 amount_work=Decimal("0"),
                 amount_parts=Decimal("0"),
+                val_amount=Decimal("0"),
             )
         )
     return lines
+
+
+def _pay_summary(order: ServiceOrder | None) -> list[dict]:
+    if not order:
+        return []
+    buckets: dict[PaymentType, dict] = {}
+    for line in order.lines:
+        rec = buckets.setdefault(
+            line.payment_type, {"method": line.payment_type, "client": Decimal("0"), "val": Decimal("0")}
+        )
+        rec["client"] += line.client_amount
+        rec["val"] += line.report_val
+    order_methods = list(LINE_PAY_METHODS) + [PaymentType.promo, PaymentType.warranty, PaymentType.expense]
+    return [buckets[m] for m in order_methods if m in buckets]
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -396,6 +442,7 @@ async def order_intake_submit(
                 payment_type=PaymentType.cash,
                 amount_work=Decimal("0"),
                 amount_parts=Decimal("0"),
+                val_amount=Decimal("0"),
             )
         ],
     )
@@ -414,7 +461,7 @@ def order_edit(
     order = db.scalar(
         select(ServiceOrder)
         .options(
-            joinedload(ServiceOrder.lines),
+            joinedload(ServiceOrder.lines).joinedload(OrderLine.promo),
             joinedload(ServiceOrder.machine),
             joinedload(ServiceOrder.client),
         )
@@ -452,7 +499,12 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             "reasons": reasons,
             "mechanics": mechanics,
             "line_types": list(FORM_LINE_TYPES),
-            "pay_methods": list(PAY_METHODS),
+            "pay_methods": list(LINE_PAY_METHODS),
+            "promos": active_promos(
+                db, extra=[ln.promo for ln in order.lines if ln.promo] if order else None
+            ),
+            "diagnostic_price": diagnostic_price(db),
+            "pay_summary": _pay_summary(order),
             "statuses": list(WORKFLOW_STATUSES),
             "history": history,
             "today": business_today().isoformat(),
@@ -464,7 +516,6 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             ),
             "read_only": user.role == UserRole.accountant,
             "closed_period": bool(order and _paid_in_closed_period(db, order)),
-            "current_payment": _order_payment(order) if order else None,
         },
     )
 
@@ -576,6 +627,8 @@ async def order_save(
         getlist("is_warranty"),
         getlist("amount_work"),
         getlist("amount_parts"),
+        getlist("promo_id"),
+        db,
     )
 
     if order_id:
@@ -626,26 +679,15 @@ async def order_save(
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
 
-def _mark_paid(order: ServiceOrder, payment: PaymentType) -> None:
-    for line in order.lines:
-        if line.line_type == LineType.expense:
-            line.payment_type = PaymentType.expense
-        elif (
-            line.line_type == LineType.warranty
-            or line.payment_type == PaymentType.warranty
-        ):
-            line.payment_type = PaymentType.warranty
-        else:
-            line.payment_type = payment
+def _mark_paid(order: ServiceOrder) -> None:
     order.status = OrderStatus.issued
     # UTC: naive timestamp columns (SQLite, ALTER-added Postgres) are read back as UTC.
     order.paid_at = datetime.now(timezone.utc)
 
 
 @router.post("/orders/{order_id}/pay")
-async def order_pay(
+def order_pay(
     order_id: int,
-    request: Request,
     db: Session = Depends(get_db),
     user: User = Depends(get_staff_user),
 ):
@@ -660,15 +702,7 @@ async def order_pay(
         raise HTTPException(403)
     if order.status == OrderStatus.issued:
         raise HTTPException(400, "already_paid")
-    form = await request.form()
-    raw = str(form.get("payment_type") or "")
-    try:
-        payment = PaymentType(raw)
-    except ValueError:
-        raise HTTPException(400, "payment_required")
-    if payment not in PAY_METHODS:
-        raise HTTPException(400, "payment_required")
-    _mark_paid(order, payment)
+    _mark_paid(order)
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
@@ -733,39 +767,6 @@ def order_reopen(
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
 
-@router.post("/orders/{order_id}/repay")
-async def order_repay(
-    order_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
-):
-    order = _load_order(db, order_id)
-    if order.status != OrderStatus.issued:
-        raise HTTPException(400, "not_issued")
-    form = await request.form()
-    try:
-        payment = PaymentType(str(form.get("payment_type") or ""))
-    except ValueError:
-        raise HTTPException(400, "payment_required")
-    if payment not in PAY_METHODS:
-        raise HTTPException(400, "payment_required")
-    before = _order_payment(order)
-    paid_at = order.paid_at
-    _mark_paid(order, payment)
-    order.paid_at = paid_at or order.paid_at
-    log_action(
-        db,
-        user,
-        "repay",
-        "order",
-        order.id,
-        f"{before.value if before else '—'} → {payment.value}" + _closed_mark(db, order),
-    )
-    db.commit()
-    return RedirectResponse(f"/orders/{order.id}", status_code=303)
-
-
 @router.post("/orders/{order_id}/delete")
 def order_delete(
     order_id: int,
@@ -783,7 +784,11 @@ def order_delete(
 
 
 @router.get("/orders/partials/line-row", response_class=HTMLResponse)
-def line_row_partial(request: Request, user: User = Depends(get_staff_user)):
+def line_row_partial(
+    request: Request,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_staff_user),
+):
     return templates.TemplateResponse(
         request,
         "orders/_line_row.html",
@@ -791,6 +796,9 @@ def line_row_partial(request: Request, user: User = Depends(get_staff_user)):
             "user": user,
             "line": None,
             "line_types": list(FORM_LINE_TYPES),
+            "pay_methods": list(LINE_PAY_METHODS),
+            "promos": active_promos(db),
+            "diagnostic_price": diagnostic_price(db),
             "locked": False,
         },
     )

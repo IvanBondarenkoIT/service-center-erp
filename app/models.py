@@ -59,6 +59,7 @@ class LineType(str, enum.Enum):
     expense = "expense"
     warranty = "warranty"
     diagnostic = "diagnostic"
+    promo = "promo"
 
 
 class PaymentType(str, enum.Enum):
@@ -191,10 +192,38 @@ class ServiceOrder(Base):
 
     @property
     def total_amount(self) -> Decimal:
+        """Amount the client pays."""
         total = Decimal("0")
         for line in self.lines:
-            total += (line.amount_work or Decimal("0")) + (line.amount_parts or Decimal("0"))
+            total += line.client_amount
         return total
+
+    @property
+    def val_total(self) -> Decimal:
+        total = Decimal("0")
+        for line in self.lines:
+            total += line.report_val
+        return total
+
+
+class PromoOffer(Base):
+    __tablename__ = "promo_offers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    client_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    val_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    lines: Mapped[list[OrderLine]] = relationship(back_populates="promo")
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(255), nullable=False, default="")
 
 
 class OrderLine(Base):
@@ -215,8 +244,21 @@ class OrderLine(Base):
     )
     amount_work: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     amount_parts: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    val_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    promo_id: Mapped[Optional[int]] = mapped_column(ForeignKey("promo_offers.id"), nullable=True)
 
     order: Mapped[ServiceOrder] = relationship(back_populates="lines")
+    promo: Mapped[Optional[PromoOffer]] = relationship(back_populates="lines")
+
+    @property
+    def client_amount(self) -> Decimal:
+        return (self.amount_work or Decimal("0")) + (self.amount_parts or Decimal("0"))
+
+    @property
+    def report_val(self) -> Decimal:
+        if self.payment_type == PaymentType.promo:
+            return self.val_amount or Decimal("0")
+        return self.client_amount
 
 
 class ErpGoodsCache(Base):
