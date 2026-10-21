@@ -851,6 +851,15 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   z-index: 40;
 }
 
+/* Keep line pay chips above the sticky Save bar so clicks are not intercepted. */
+.wrap:has(.form-save-bar) {
+  padding-bottom: calc(var(--target, 48px) + 56px);
+}
+
+.order-form {
+  padding-bottom: 24px;
+}
+
 .pay-done {
   margin: 12px 0 0;
   font-weight: 600;

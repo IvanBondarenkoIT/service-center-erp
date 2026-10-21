@@ -48,23 +48,51 @@ function pickErpModel(event) {
 document.addEventListener("pointerdown", pickErpModel);
 document.addEventListener("click", pickErpModel);
 
+function diagnosticLabel(card) {
+  return card?.closest("#lines-body")?.dataset.diagnosticLabel || "";
+}
+
+function promoOptionNames(card) {
+  return [...(card?.querySelectorAll('select[name="promo_id"] option[value]:not([value=""])') || [])]
+    .map((o) => (o.dataset.name || o.textContent || "").trim())
+    .filter(Boolean);
+}
+
+function isAutoDescription(card, text) {
+  const value = (text || "").trim();
+  if (!value) return true;
+  const label = diagnosticLabel(card);
+  if (label && value === label) return true;
+  return promoOptionNames(card).includes(value);
+}
+
+function setPayChips(card, method, { disabled = false } = {}) {
+  const pay = card.querySelector('input[name="payment_type"]');
+  if (pay && method) pay.value = method;
+  const active = method || pay?.value || "Cash";
+  card.querySelectorAll(".line-pay-row button.chip").forEach((el) => {
+    el.disabled = disabled;
+    el.classList.toggle("active", el.dataset.value === active);
+  });
+}
+
 function syncLineWarranty(card, on) {
   if (!card) return;
   if ((card.querySelector('input[name="line_type"]')?.value || "") === "promo") return;
   const wrap = card.querySelector(".line-amount-wrap");
   const amount = card.querySelector('input[name="amount"]');
-  const pay = card.querySelector('input[name="payment_type"]');
+  const locked = Boolean(card.closest(".is-locked"));
   if (wrap) wrap.classList.toggle("is-warranty", on);
   if (amount) {
     if (on) amount.value = "0";
-    amount.readOnly = on;
+    amount.readOnly = on || locked;
   }
-  if (pay) pay.value = on ? "garanty" : "Cash";
-  if (!on) {
-    card.querySelectorAll(".line-pay-row button.chip").forEach((el) => {
-      el.classList.toggle("active", el.dataset.value === "Cash");
-      el.disabled = false;
-    });
+  if (on) {
+    const pay = card.querySelector('input[name="payment_type"]');
+    if (pay) pay.value = "garanty";
+    setPayChips(card, null, { disabled: true });
+  } else {
+    setPayChips(card, "Cash", { disabled: locked });
   }
 }
 
@@ -80,6 +108,10 @@ function applyPromo(card) {
     if (desc) desc.value = opt.dataset.name || "";
     if (amount) amount.value = opt.dataset.client || "0";
     if (val) val.value = opt.dataset.val || "0";
+  } else {
+    if (desc) desc.value = "";
+    if (amount) amount.value = "0";
+    if (val) val.value = "0";
   }
   if (pay) pay.value = "promo";
   if (amount) amount.readOnly = true;
@@ -93,7 +125,9 @@ function syncLineKind(card) {
   const pay = card.querySelector('input[name="payment_type"]');
   const desc = card.querySelector('input[name="description"]');
   const box = card.querySelector(".line-part-suggest");
+  const locked = Boolean(card.closest(".is-locked"));
   if (kind !== "part" && box) box.replaceChildren();
+
   if (kind === "promo") {
     const w = card.querySelector('input[name="is_warranty"]');
     if (w) w.value = "0";
@@ -101,24 +135,30 @@ function syncLineKind(card) {
     applyPromo(card);
     return;
   }
-  const locked = Boolean(card.closest(".is-locked"));
+
   const warrantyOn = card.querySelector('input[name="is_warranty"]')?.value === "1";
   if (amount) amount.readOnly = warrantyOn || locked;
+
   if (kind === "diagnostic") {
     const body = card.closest("#lines-body");
     const label = body?.dataset.diagnosticLabel || "";
     const price = body?.dataset.diagnosticPrice || "0";
-    if (desc && !desc.value.trim()) desc.value = label;
+    if (desc) desc.value = label;
     if (amount && (amount.value === "" || amount.value === "0" || amount.value === "0.00")) {
       amount.value = price;
     }
+  } else if (desc && isAutoDescription(card, desc.value)) {
+    desc.value = "";
   }
-  if (pay && pay.value === "promo") {
-    pay.value = "Cash";
-    card.querySelectorAll(".line-pay-row button.chip").forEach((el) => {
-      el.classList.toggle("active", el.dataset.value === "Cash");
-    });
+
+  if (warrantyOn) {
+    if (pay) pay.value = "garanty";
+    setPayChips(card, null, { disabled: true });
+    return;
   }
+
+  const method = pay && pay.value !== "promo" && pay.value !== "garanty" ? pay.value : "Cash";
+  setPayChips(card, method, { disabled: locked });
 }
 
 function fillClientName(name, force) {
