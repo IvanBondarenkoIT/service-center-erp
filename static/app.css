@@ -901,10 +901,24 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
 
 .order-form.is-locked input,
 .order-form.is-locked textarea,
-.order-form.is-locked select,
+.order-form.is-locked select {
+  pointer-events: none;
+  background: var(--surface);
+  color: var(--ink);
+  border-color: #8a8a86;
+}
+
 .order-form.is-locked button.chip {
   pointer-events: none;
-  background: var(--bg);
+  background: var(--surface);
+  color: var(--ink);
+  border-color: #8a8a86;
+}
+
+.order-form.is-locked button.chip.active {
+  background: #ecece8;
+  color: var(--ink);
+  border-color: #5c5c5c;
 }
 
 .history-box {
