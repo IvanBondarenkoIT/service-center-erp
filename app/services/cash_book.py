@@ -97,10 +97,29 @@ VAL_METHODS = (
 class IncomeRow:
     order_id: int
     order_date: date
-    payment_type: PaymentType
-    amount: Decimal
     assignee: str
     note: str
+    cash: Decimal = ZERO
+    card: Decimal = ZERO
+    transfer: Decimal = ZERO
+    promo: Decimal = ZERO
+
+    @property
+    def amount(self) -> Decimal:
+        return money(self.cash + self.card + self.transfer + self.promo)
+
+    def amount_of(self, method: PaymentType) -> Decimal:
+        return {
+            PaymentType.cash: self.cash,
+            PaymentType.card: self.card,
+            PaymentType.transfer: self.transfer,
+            PaymentType.promo: self.promo,
+        }.get(method, ZERO)
+
+    @property
+    def payment_type(self) -> PaymentType | None:
+        methods = [m for m in VAL_METHODS if self.amount_of(m)]
+        return methods[0] if len(methods) == 1 else None
 
 
 @dataclass
@@ -370,16 +389,18 @@ def build_cash_report(
             report.by_method[method.value] = money(
                 report.by_method.get(method.value, ZERO) + amount
             )
-            report.income_rows.append(
-                IncomeRow(
-                    order_id=order.id,
-                    order_date=day,
-                    payment_type=method,
-                    amount=amount,
-                    assignee=assignee,
-                    note=note,
-                )
+        report.income_rows.append(
+            IncomeRow(
+                order_id=order.id,
+                order_date=day,
+                assignee=assignee,
+                note=note,
+                cash=money(buckets[PaymentType.cash.value]),
+                card=money(buckets[PaymentType.card.value]),
+                transfer=money(buckets[PaymentType.transfer.value]),
+                promo=money(buckets[PaymentType.promo.value]),
             )
+        )
     report.cash_in = money(report.by_method.get(PaymentType.cash.value, ZERO))
     report.card_in = money(report.by_method.get(PaymentType.card.value, ZERO))
     report.transfer_in = money(report.by_method.get(PaymentType.transfer.value, ZERO))
@@ -471,6 +492,26 @@ def cash_report_xlsx(report: CashReport) -> bytes:
         row_no += 1
     ws.cell(row_no, 1, "Val total")
     ws.cell(row_no, 2, float(report.val))
+    if report.income_rows:
+        row_no += 2
+        ws.cell(row_no, 1, "Orders")
+        row_no += 1
+        for col, title in enumerate(
+            ("Date", "Order", "Serial", "Assignee", "Cash", "Terminal", "Transfer", "Promo", "Val"),
+            1,
+        ):
+            ws.cell(row_no, col, title)
+        for r in report.income_rows:
+            row_no += 1
+            ws.cell(row_no, 1, r.order_date.isoformat())
+            ws.cell(row_no, 2, r.order_id)
+            ws.cell(row_no, 3, r.note)
+            ws.cell(row_no, 4, r.assignee)
+            ws.cell(row_no, 5, float(r.cash))
+            ws.cell(row_no, 6, float(r.card))
+            ws.cell(row_no, 7, float(r.transfer))
+            ws.cell(row_no, 8, float(r.promo))
+            ws.cell(row_no, 9, float(r.amount))
     if report.reconcile_rows:
         row_no += 2
         ws.cell(row_no, 1, "Reconcile")

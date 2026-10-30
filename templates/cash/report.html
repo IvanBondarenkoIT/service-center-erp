@@ -33,6 +33,9 @@
     </select>
     {% endif %}
   </div>
+  {% if pay_filter %}
+  <input type="hidden" name="method" value="{{ pay_filter.value }}" />
+  {% endif %}
   <button class="btn" type="submit">{{ t('cash.show') }}</button>
   <button class="btn btn-secondary" type="button" onclick="window.print()">{{ t('cash.print') }}</button>
   <a class="btn btn-secondary" href="/cash.xlsx?date_from={{ date_from }}&amp;date_to={{ date_to }}{% if center_id %}&amp;center_id={{ center_id }}{% endif %}">{{ t('cash.excel') }}</a>
@@ -53,6 +56,10 @@
     <span class="label-caps">{{ t('cash.cash_in') }}</span>
     <span class="order-total">{{ '%.2f'|format(report.cash_in) }} {{ t('orders.currency') }}</span>
   </div>
+  <div class="kpi">
+    <span class="label-caps">{{ t('cash.val') }}</span>
+    <span class="order-total">{{ '%.2f'|format(report.val) }} {{ t('orders.currency') }}</span>
+  </div>
   <div class="kpi kpi-warn">
     <span class="label-caps">{{ t('cash.outflow') }}</span>
     <span class="order-total">{% if report.outflow %}−{% endif %}{{ '%.2f'|format(report.outflow) }} {{ t('orders.currency') }}</span>
@@ -69,6 +76,7 @@
   </div>
 </section>
 <p class="muted text-end">{{ t('cash.formula') }}</p>
+<p class="muted">{{ t('cash.till_vs_val') }}</p>
 
 {% if report.reconcile_rows %}
 <section class="card flush">
@@ -144,37 +152,53 @@
   </table>
 </section>
 
+{% set filter_qs = 'date_from=' ~ date_from ~ '&date_to=' ~ date_to ~ ('&center_id=' ~ center_id if center_id else '') %}
 <section class="card flush">
   <div class="section-head">
     <h2>{{ t('cash.income') }}</h2>
-    <span class="order-total">{{ '%.2f'|format(report.val) }} {{ t('orders.currency') }}</span>
+    <span class="order-total">{{ t('cash.val') }} {{ '%.2f'|format(report.val) }} · {{ t('cash.cash_in') }} {{ '%.2f'|format(report.cash_in) }} {{ t('orders.currency') }}</span>
   </div>
+  <div class="chip-row filter-chips no-print">
+    <a class="chip {% if not pay_filter %}active{% endif %}" href="/cash?{{ filter_qs }}">{{ t('orders.filter_all') }}</a>
+    {% for m in pay_methods %}
+    <a class="chip {% if pay_filter and pay_filter.value == m.value %}active{% endif %}"
+      href="/cash?{{ filter_qs }}&amp;method={{ m.value }}">{{ t(val_labels[m.value]) }}</a>
+    {% endfor %}
+  </div>
+  <div class="income-table-wrap">
   <table class="data">
     <thead>
       <tr>
         <th>{{ t('cash.date') }}</th>
-        <th>{{ t('cash.method') }}</th>
-        <th>{{ t('cash.amount') }}</th>
         <th>{{ t('cash.basis') }}</th>
+        <th class="col-till">{{ t('cash.cash_in') }}</th>
+        <th>{{ t('cash.card_in') }}</th>
+        <th>{{ t('cash.transfer_in') }}</th>
+        <th>{{ t('cash.promo_in') }}</th>
+        <th>{{ t('cash.val') }}</th>
       </tr>
     </thead>
     <tbody>
-      {% for row in report.income_rows %}
-      <tr>
+      {% for row in income_rows %}
+      <tr data-order-income="{{ row.order_id }}">
         <td class="order-sn">{{ row.order_date.strftime('%d.%m.%Y') }}</td>
-        <td>{{ t(val_labels[row.payment_type.value]) }}</td>
-        <td class="order-sn">{{ '%.2f'|format(row.amount) }}</td>
         <td>
           <a href="/orders/{{ row.order_id }}">{{ t('cash.order') }} #{{ row.order_id }}</a>
           · {{ row.note }}
           <div class="muted">{{ row.assignee }}</div>
         </td>
+        <td class="order-sn col-till {% if not row.cash %}amt-zero{% endif %}">{% if row.cash %}{{ '%.2f'|format(row.cash) }}{% else %}—{% endif %}</td>
+        <td class="order-sn {% if not row.card %}amt-zero{% endif %}">{% if row.card %}{{ '%.2f'|format(row.card) }}{% else %}—{% endif %}</td>
+        <td class="order-sn {% if not row.transfer %}amt-zero{% endif %}">{% if row.transfer %}{{ '%.2f'|format(row.transfer) }}{% else %}—{% endif %}</td>
+        <td class="order-sn {% if not row.promo %}amt-zero{% endif %}">{% if row.promo %}{{ '%.2f'|format(row.promo) }}{% else %}—{% endif %}</td>
+        <td class="order-sn"><strong>{{ '%.2f'|format(row.amount) }}</strong></td>
       </tr>
       {% else %}
-      <tr><td colspan="4" class="muted">{{ t('cash.empty') }}</td></tr>
+      <tr><td colspan="7" class="muted">{{ t('cash.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </section>
 
 <div class="grid-2">

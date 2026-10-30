@@ -82,7 +82,8 @@
     "enter": "Post expense",
     "empty": "No operations in this period",
     "mode_accountant": "Accountant mode: view only",
-    "order": "Order"
+    "order": "Order",
+    "till_vs_val": "Till is cash only. Gross is cash + terminal + transfer + promo."
   },
   "locale": {
     "ru": "RU",

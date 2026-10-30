@@ -916,9 +916,45 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
 }
 
 .order-form.is-locked button.chip.active {
-  background: #ecece8;
+  background: #d8d8d4;
   color: var(--ink);
-  border-color: #5c5c5c;
+  border-color: #1a1a1a;
+}
+
+.order-form.is-locked button.chip-line-work.active {
+  background: #d4e0db;
+  border-color: #2c4a3e;
+  color: #1a1a1a;
+}
+
+.order-form.is-locked button.chip-line-part.active {
+  background: #d5dde8;
+  border-color: #3d5a80;
+  color: #1a1a1a;
+}
+
+.order-form.is-locked button.chip-line-diagnostic.active {
+  background: #efe4cc;
+  border-color: #8a5a00;
+  color: #1a1a1a;
+}
+
+.order-form.is-locked button.chip-line-promo.active {
+  background: #e6d8e5;
+  border-color: #6b3d6a;
+  color: #1a1a1a;
+}
+
+.order-form.is-locked button.chip-line-warranty.active {
+  background: #dce3d4;
+  border-color: #5c6b4a;
+  color: #1a1a1a;
+}
+
+.order-form.is-locked button.chip-line-expense.active {
+  background: #ead6d6;
+  border-color: #8b1e1e;
+  color: #1a1a1a;
 }
 
 .history-box {
@@ -1064,6 +1100,14 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   .bottom-nav { display: none !important; }
 }
 
+.card.flush .filter-chips {
+  padding: 10px 12px 4px;
+  margin: 0;
+}
+.income-table-wrap { overflow-x: auto; }
+.amt-zero { color: var(--muted); }
+.col-till { font-weight: 600; }
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1072,7 +1116,11 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
 }
 
 @media (min-width: 900px) {
-  .kpi-grid { grid-template-columns: repeat(5, 1fr); }
+  .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 1200px) {
+  .kpi-grid { grid-template-columns: repeat(6, 1fr); }
 }
 
 .kpi {

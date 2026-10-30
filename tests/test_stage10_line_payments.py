@@ -109,10 +109,11 @@ def test_mixed_line_payments_cash_card_promo(client) -> None:
             _center_id("batumi"),
         )
         rows = [r for r in report.income_rows if r.note == serial]
-        by_pt = {r.payment_type: r.amount for r in rows}
-        assert by_pt[PaymentType.cash] == Decimal("80.00")
-        assert by_pt[PaymentType.card] == Decimal("40.00")
-        assert by_pt[PaymentType.promo] == Decimal("60.00")
+        assert len(rows) == 1
+        assert rows[0].cash == Decimal("80.00")
+        assert rows[0].card == Decimal("40.00")
+        assert rows[0].promo == Decimal("60.00")
+        assert rows[0].amount == Decimal("180.00")
         assert report.closing == report.opening + report.cash_in - report.expense - report.collection
     finally:
         db.close()
@@ -258,6 +259,42 @@ def test_warranty_does_not_wipe_promo_line(client) -> None:
         assert line.val_amount == Decimal("60.00")
     finally:
         db.close()
+
+
+def test_cash_income_one_row_per_order_and_method_filter(client) -> None:
+    promo_id = _make_promo(client)
+    serial = _serial()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    data = _base("mechanic_batumi", serial)
+    data.update(
+        {
+            "line_type": ["work", "part", "promo"],
+            "description": ["repair", "pump", "x"],
+            "part_code": ["", "ERP-1", ""],
+            "payment_type": ["Cash", "Card", "promo"],
+            "is_warranty": ["0", "0", "0"],
+            "amount": ["80.00", "40.00", "0"],
+            "promo_id": ["", "", str(promo_id)],
+        }
+    )
+    saved = client.post("/orders/save", data=data, follow_redirects=False)
+    oid = int(saved.headers["location"].rsplit("/", 1)[-1])
+    assert _pay(client, oid).status_code == 303
+    _set_paid_at(oid, "2019-04-22")
+    login(client, "admin", settings.seed_admin_password)
+    params = {"date_from": "2019-04-01", "date_to": "2019-04-30", "center_id": _center_id("batumi")}
+    page = client.get("/cash", params=params)
+    assert page.status_code == 200
+    html = page.text
+    assert html.count(f'data-order-income="{oid}"') == 1
+    assert "80.00" in html and "40.00" in html and "60.00" in html
+    assert "Касса — только наличные" in html
+    assert "method=Card" in html
+    only_card = client.get("/cash", params=params | {"method": "Card"})
+    assert serial in only_card.text
+    assert f'data-order-income="{oid}"' in only_card.text
+    only_transfer = client.get("/cash", params=params | {"method": "perechisleniye"})
+    assert serial not in only_transfer.text
 
 
 def test_mechanic_forbidden_prices_page(client) -> None:

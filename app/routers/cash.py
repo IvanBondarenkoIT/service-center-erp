@@ -15,11 +15,13 @@ from app.models import (
     CashEntryKind,
     CashOpening,
     CollectionSubtype,
+    PaymentType,
     ServiceCenter,
     User,
     UserRole,
 )
 from app.services.cash_book import (
+    VAL_METHODS,
     build_cash_report,
     business_today,
     cash_report_xlsx,
@@ -63,18 +65,31 @@ def _report_center_id(user: User, center_id: int | None) -> int | None:
     return center_id
 
 
+def _pay_filter(raw: str) -> PaymentType | None:
+    try:
+        method = PaymentType(raw)
+    except ValueError:
+        return None
+    return method if method in VAL_METHODS else None
+
+
 @router.get("/cash", response_class=HTMLResponse)
 def cash_report(
     request: Request,
     date_from: str = Query(""),
     date_to: str = Query(""),
     center_id: int | None = Query(None),
+    method: str = Query(""),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     d_from, d_to = _period(date_from, date_to)
     scoped = _report_center_id(user, center_id)
     report = build_cash_report(db, d_from, d_to, scoped)
+    pay_filter = _pay_filter(method)
+    income_rows = report.income_rows
+    if pay_filter:
+        income_rows = [row for row in income_rows if row.amount_of(pay_filter)]
     centers = list(db.scalars(select(ServiceCenter).order_by(ServiceCenter.id)))
     return templates.TemplateResponse(
         request,
@@ -82,6 +97,9 @@ def cash_report(
         {
             "user": user,
             "report": report,
+            "income_rows": income_rows,
+            "pay_filter": pay_filter,
+            "pay_methods": VAL_METHODS,
             "centers": centers,
             "date_from": d_from.isoformat(),
             "date_to": d_to.isoformat(),
