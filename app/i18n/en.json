@@ -154,7 +154,7 @@
     "sn_missing": "Serial number is required",
     "pay": "Pay",
     "pay_method": "Payment method",
-    "pay_hint": "Each line has its own payment method. Pay only issues the order: amounts then go to the till and gross.",
+    "pay_hint": "Each line has its own payment method. Pay first saves your changes, then issues the order: amounts go to the till and gross.",
     "paid_in_cash": "Paid. The amount is in the cash report.",
     "pay_summary": "Payment summary",
     "client_pay": "Due",

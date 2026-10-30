@@ -675,6 +675,11 @@ async def order_save(
         )
         db.add(order)
 
+    if str(form.get("after_save") or "") == "pay":
+        if order.status == OrderStatus.issued:
+            raise HTTPException(400, "already_paid")
+        _mark_paid(order)
+
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 

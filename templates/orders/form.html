@@ -183,9 +183,8 @@
   {% endif %}
   {% if order.status.value != 'issued' and not read_only %}
   <p class="muted">{{ t('orders.pay_hint') }}</p>
-  <form method="post" action="/orders/{{ order.id }}/pay">
-    <button class="btn btn-pay" type="submit">{{ t('orders.pay') }}</button>
-  </form>
+  <button class="btn btn-pay" type="submit" form="order-save"
+    name="after_save" value="pay">{{ t('orders.pay') }}</button>
   {% elif order.status.value == 'issued' %}
   <p class="pay-done">{{ t('orders.paid_in_cash') }} <a href="/cash">{{ t('nav.cash') }}</a></p>
   {% endif %}

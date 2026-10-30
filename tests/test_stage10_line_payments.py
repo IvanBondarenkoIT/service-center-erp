@@ -165,6 +165,47 @@ def test_diagnostic_uses_setting_and_can_override(client) -> None:
         db.close()
 
 
+def test_pay_button_saves_then_issues(client) -> None:
+    serial = _serial()
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    data = _base("mechanic_batumi", serial)
+    data.update(
+        {
+            "line_type": "work",
+            "description": "draft",
+            "part_code": "",
+            "payment_type": "Cash",
+            "is_warranty": "0",
+            "amount": "5.00",
+            "promo_id": "",
+        }
+    )
+    saved = client.post("/orders/save", data=data, follow_redirects=False)
+    oid = int(saved.headers["location"].rsplit("/", 1)[-1])
+    form = client.get(f"/orders/{oid}")
+    assert 'name="after_save" value="pay"' in form.text
+    assert f'action="/orders/{oid}/pay"' not in form.text
+    assert 'form="order-save"' in form.text
+
+    data["order_id"] = str(oid)
+    data["description"] = "final repair"
+    data["payment_type"] = "Card"
+    data["amount"] = "77.00"
+    data["after_save"] = "pay"
+    paid = client.post("/orders/save", data=data, follow_redirects=False)
+    assert paid.status_code == 303
+    db = SessionLocal()
+    try:
+        order = db.get(ServiceOrder, oid)
+        assert order.status.value == "issued"
+        assert order.paid_at is not None
+        assert order.lines[0].description == "final repair"
+        assert order.lines[0].payment_type == PaymentType.card
+        assert order.lines[0].client_amount == Decimal("77.00")
+    finally:
+        db.close()
+
+
 def test_pay_keeps_line_methods(client) -> None:
     serial = _serial()
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
