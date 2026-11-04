@@ -912,49 +912,51 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   pointer-events: none;
   background: var(--surface);
   color: var(--ink);
-  border-color: #8a8a86;
+  border: 1px solid #8a8a86;
+  font-weight: 600;
 }
 
 .order-form.is-locked button.chip.active {
-  background: #d8d8d4;
-  color: var(--ink);
-  border-color: #1a1a1a;
+  background: #b8b8b2;
+  color: #111;
+  border: 2px solid #111;
+  font-weight: 700;
 }
 
 .order-form.is-locked button.chip-line-work.active {
-  background: #d4e0db;
-  border-color: #2c4a3e;
-  color: #1a1a1a;
+  background: #a8c4b6;
+  border: 2px solid #1e3a2e;
+  color: #111;
 }
 
 .order-form.is-locked button.chip-line-part.active {
-  background: #d5dde8;
-  border-color: #3d5a80;
-  color: #1a1a1a;
+  background: #a8bcd4;
+  border: 2px solid #2a4466;
+  color: #111;
 }
 
 .order-form.is-locked button.chip-line-diagnostic.active {
-  background: #efe4cc;
-  border-color: #8a5a00;
-  color: #1a1a1a;
+  background: #e0c888;
+  border: 2px solid #6a4400;
+  color: #111;
 }
 
 .order-form.is-locked button.chip-line-promo.active {
-  background: #e6d8e5;
-  border-color: #6b3d6a;
-  color: #1a1a1a;
+  background: #d0b0ce;
+  border: 2px solid #4a2848;
+  color: #111;
 }
 
 .order-form.is-locked button.chip-line-warranty.active {
-  background: #dce3d4;
-  border-color: #5c6b4a;
-  color: #1a1a1a;
+  background: #b8c8a8;
+  border: 2px solid #3c4a2e;
+  color: #111;
 }
 
 .order-form.is-locked button.chip-line-expense.active {
-  background: #ead6d6;
-  border-color: #8b1e1e;
-  color: #1a1a1a;
+  background: #d8a8a8;
+  border: 2px solid #6a1010;
+  color: #111;
 }
 
 .history-box {
