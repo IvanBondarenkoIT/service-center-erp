@@ -83,7 +83,9 @@
     "empty": "No operations in this period",
     "mode_accountant": "Accountant mode: view only",
     "order": "Order",
-    "till_vs_val": "Till is cash only. Gross is cash + terminal + transfer + promo."
+    "till_vs_val": "Till is cash only. Gross is cash + terminal + transfer + promo.",
+    "warranty_in": "Warranty",
+    "warranty_vs_val": "Warranty EUR is not in the till and not in gross."
   },
   "locale": {
     "ru": "RU",
@@ -148,7 +150,12 @@
     "work_amount": "Labor",
     "parts_amount": "Parts",
     "amount": "Amount",
-    "warranty_free": "Warranty (free)",
+    "warranty_free": "Warranty",
+    "warranty_eur": "Warranty, EUR",
+    "currency_eur": "EUR",
+    "paid_at": "Paid",
+    "order_history": "Order history",
+    "history_empty_events": "No events yet",
     "part_code": "Part code / SN",
     "status": "Status",
     "currency": "GEL",
@@ -176,6 +183,7 @@
     "by_center": "Totals by center",
     "by_payment": "Payment types",
     "top_reasons": "Frequent issues",
+    "warranty": "Warranty, EUR",
     "repeat": "Repeat repairs",
     "visits": "Visits",
     "empty": "No data"
@@ -239,6 +247,7 @@
     "active": "Active",
     "yes": "yes",
     "no": "no",
+    "order_history": "Order history",
     "audit": "Audit log",
     "audit_all": "All",
     "who": "Who",
@@ -275,6 +284,16 @@
       "machine": "Machine",
       "reason": "Reason",
       "promo": "Promo"
+    }
+  },
+  "order_event": {
+    "action": {
+      "created": "Created",
+      "status": "Status",
+      "paid": "Paid",
+      "reopened": "Reopened",
+      "edited": "Edited",
+      "deleted": "Deleted"
     }
   },
   "intake": {

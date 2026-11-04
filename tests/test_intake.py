@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.database import SessionLocal
-from app.models import OrderStatus, ServiceOrder
+from app.models import OrderEvent, OrderStatus, ServiceOrder
 from app.services.serial_scan import serial_from_scan
 from tests.helpers import login, settings, user_ids
 
@@ -98,6 +98,11 @@ def test_intake_creates_order_and_redirects(client) -> None:
         assert order.order_date == date.today()
         user_id, _ = user_ids("mechanic_batumi")
         assert order.assignee_id == user_id
+        actions = [
+            ev.action
+            for ev in db.scalars(select(OrderEvent).where(OrderEvent.order_id == oid))
+        ]
+        assert actions == ["created"]
     finally:
         db.close()
 

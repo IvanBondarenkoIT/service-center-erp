@@ -45,6 +45,9 @@ def test_enums_and_tables() -> None:
     assert "locale" in cols
     cols_orders = {c["name"] for c in inspect(engine).get_columns("service_orders")}
     assert "status" in cols_orders
+    cols_lines = {c["name"] for c in inspect(engine).get_columns("order_lines")}
+    assert "warranty_eur" in cols_lines
+    assert "order_events" in names
 
 
 def test_seed_three_mechanics() -> None:

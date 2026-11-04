@@ -26,9 +26,23 @@ from app.models import (
     UserRole,
 )
 from app.services.audit import log_action
+from app.services.order_events import (
+    log_order_event,
+    order_snapshot,
+    recent_order_events,
+    snapshot_diff,
+    snapshot_text,
+)
 from app.services.erp_clients import find_erp_client
 from app.services.phones import normalize_phone
-from app.services.cash_book import business_today, cash_date, lock_date
+from app.services.cash_book import (
+    ZERO,
+    as_business_datetime,
+    business_today,
+    cash_date,
+    lock_date,
+    money,
+)
 from app.services.prices import active_promos, diagnostic_price
 from app.services.serial_scan import serial_from_scan
 from app.templating import templates
@@ -43,6 +57,7 @@ WORKFLOW_STATUSES = (
 PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer, PaymentType.promo)
 LINE_PAY_METHODS = (PaymentType.cash, PaymentType.card, PaymentType.transfer)
 FORM_LINE_TYPES = (LineType.work, LineType.part, LineType.diagnostic, LineType.promo)
+WARRANTY_EUR_MAX = Decimal("99.99")
 
 
 def _scoped_orders_query(user: User):
@@ -69,6 +84,15 @@ def _parse_decimal(raw: str | None) -> Decimal:
         return Decimal(str(raw).replace(",", ".").strip() or "0")
     except InvalidOperation:
         return Decimal("0")
+
+
+def _warranty_eur_amount(raw: str | None) -> Decimal:
+    value = money(_parse_decimal(raw))
+    if value < ZERO:
+        return ZERO
+    if value > WARRANTY_EUR_MAX:
+        return WARRANTY_EUR_MAX
+    return value
 
 
 def _ensure_client(db: Session, phone: str, name: str) -> Client | None:
@@ -150,12 +174,14 @@ def _parse_lines_from_form(
     amount_work: list[str] | None = None,
     amount_parts: list[str] | None = None,
     promo_id: list[str] | None = None,
+    warranty_eur: list[str] | None = None,
     db: Session | None = None,
 ) -> list[OrderLine]:
     lines: list[OrderLine] = []
     amount_work = amount_work or []
     amount_parts = amount_parts or []
     promo_id = promo_id or []
+    warranty_eur = warranty_eur or []
     n = max(len(line_type), len(description), len(amount), 1)
 
     def pad(xs: list[str], size: int) -> list[str]:
@@ -170,6 +196,7 @@ def _parse_lines_from_form(
     amount_work = pad(amount_work, n)
     amount_parts = pad(amount_parts, n)
     promo_id = pad(promo_id, n)
+    warranty_eur = pad(warranty_eur, n)
 
     for i in range(n):
         desc = (description[i] or "").strip()
@@ -249,10 +276,12 @@ def _parse_lines_from_form(
         else:
             total = _parse_decimal(amount_work[i]) + _parse_decimal(amount_parts[i])
 
+        eur = ZERO
         if warranty_flag:
             total = Decimal("0")
             pt = PaymentType.warranty
             aw, ap = Decimal("0"), Decimal("0")
+            eur = _warranty_eur_amount(warranty_eur[i])
         elif lt == LineType.part:
             aw, ap = Decimal("0"), total
             if pt not in LINE_PAY_METHODS:
@@ -273,6 +302,7 @@ def _parse_lines_from_form(
                 amount_work=aw,
                 amount_parts=ap,
                 val_amount=aw + ap,
+                warranty_eur=eur,
             )
         )
     if not lines:
@@ -295,10 +325,17 @@ def _pay_summary(order: ServiceOrder | None) -> list[dict]:
     buckets: dict[PaymentType, dict] = {}
     for line in order.lines:
         rec = buckets.setdefault(
-            line.payment_type, {"method": line.payment_type, "client": Decimal("0"), "val": Decimal("0")}
+            line.payment_type,
+            {
+                "method": line.payment_type,
+                "client": Decimal("0"),
+                "val": Decimal("0"),
+                "eur": Decimal("0"),
+            },
         )
         rec["client"] += line.client_amount
         rec["val"] += line.report_val
+        rec["eur"] += line.warranty_eur or Decimal("0")
     order_methods = list(LINE_PAY_METHODS) + [PaymentType.promo, PaymentType.warranty, PaymentType.expense]
     return [buckets[m] for m in order_methods if m in buckets]
 
@@ -447,6 +484,14 @@ async def order_intake_submit(
         ],
     )
     db.add(order)
+    db.flush()
+    log_order_event(
+        db,
+        user,
+        order,
+        "created",
+        snapshot_text(order_snapshot(order, list(order.lines))),
+    )
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
@@ -516,6 +561,7 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             ),
             "read_only": user.role == UserRole.accountant,
             "closed_period": bool(order and _paid_in_closed_period(db, order)),
+            "order_events": recent_order_events(db, order_id=order.id, limit=80) if order else [],
         },
     )
 
@@ -628,15 +674,19 @@ async def order_save(
         getlist("amount_work"),
         getlist("amount_parts"),
         getlist("promo_id"),
+        getlist("warranty_eur"),
         db,
     )
 
+    will_pay = str(form.get("after_save") or "") == "pay"
     if order_id:
         order = db.get(ServiceOrder, order_id)
         if not order:
             raise HTTPException(404)
         if user.role != UserRole.admin and order.assignee_id != user.id:
             raise HTTPException(403)
+        before = order_snapshot(order)
+        old_status = order.status
         if order.status == OrderStatus.issued:
             if user.role != UserRole.admin:
                 raise HTTPException(403)
@@ -661,6 +711,23 @@ async def order_save(
         order.lines.clear()
         for line in lines:
             order.lines.append(line)
+        after = order_snapshot(order, lines)
+        edited = snapshot_diff(before, after)
+        if old_status != order.status:
+            log_order_event(
+                db,
+                user,
+                order,
+                "status",
+                f"{old_status.value} → {order.status.value}" + (f"; {edited}" if edited else ""),
+            )
+        elif edited:
+            log_order_event(db, user, order, "edited", edited)
+        if will_pay:
+            if order.status == OrderStatus.issued:
+                raise HTTPException(400, "already_paid")
+            _mark_paid(order)
+            log_order_event(db, user, order, "paid", _pay_event_details(order))
     else:
         order = ServiceOrder(
             order_date=order_date,
@@ -674,14 +741,25 @@ async def order_save(
             lines=lines,
         )
         db.add(order)
-
-    if str(form.get("after_save") or "") == "pay":
-        if order.status == OrderStatus.issued:
-            raise HTTPException(400, "already_paid")
-        _mark_paid(order)
+        db.flush()
+        log_order_event(db, user, order, "created", snapshot_text(order_snapshot(order, lines)))
+        if will_pay:
+            _mark_paid(order)
+            log_order_event(db, user, order, "paid", _pay_event_details(order))
 
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
+
+
+def _fmt_paid_at(paid) -> str:
+    local = as_business_datetime(paid)
+    return local.strftime("%d.%m.%Y %H:%M") if local else ""
+
+
+def _pay_event_details(order: ServiceOrder) -> str:
+    snap = order_snapshot(order)
+    paid = _fmt_paid_at(order.paid_at)
+    return f"paid_at {paid}; gel {snap['gel']}; eur {snap['eur']}; {snap['methods']}"
 
 
 def _mark_paid(order: ServiceOrder) -> None:
@@ -708,6 +786,7 @@ def order_pay(
     if order.status == OrderStatus.issued:
         raise HTTPException(400, "already_paid")
     _mark_paid(order)
+    log_order_event(db, user, order, "paid", _pay_event_details(order))
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
@@ -755,19 +834,13 @@ def order_reopen(
     mark = _closed_mark(db, order)
     order.status = OrderStatus.ready
     order.paid_at = None
-    log_action(
-        db,
-        user,
-        "reopen",
-        "order",
-        order.id,
-        (
-            f"paid_at {paid:%d.%m.%Y %H:%M}; {payment.value if payment else '—'}; {order.total_amount}"
-            if paid
-            else f"{payment.value if payment else '—'}; {order.total_amount}"
-        )
-        + mark,
-    )
+    details = (
+        f"paid_at {_fmt_paid_at(paid)}; {payment.value if payment else '—'}; {order.total_amount}"
+        if paid
+        else f"{payment.value if payment else '—'}; {order.total_amount}"
+    ) + mark
+    log_action(db, user, "reopen", "order", order.id, details)
+    log_order_event(db, user, order, "reopened", details)
     db.commit()
     return RedirectResponse(f"/orders/{order.id}", status_code=303)
 
@@ -782,8 +855,9 @@ def order_delete(
     if order.status == OrderStatus.issued:
         raise HTTPException(400, "issued_cannot_delete")
     details = f"{order.order_date:%d.%m.%Y}; machine {order.machine_id}; client {order.client_id}; {order.total_amount}"
-    db.delete(order)
     log_action(db, user, "delete", "order", order_id, details)
+    log_order_event(db, user, order, "deleted", details)
+    db.delete(order)
     db.commit()
     return RedirectResponse("/", status_code=303)
 

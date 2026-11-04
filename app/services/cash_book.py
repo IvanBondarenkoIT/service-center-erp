@@ -27,6 +27,15 @@ def business_today() -> date:
     return datetime.now(BUSINESS_TZ).date()
 
 
+def as_business_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    dt = value
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(BUSINESS_TZ)
+
+
 def as_business_date(value: datetime | date | None) -> date | None:
     if value is None:
         return None
@@ -103,6 +112,7 @@ class IncomeRow:
     card: Decimal = ZERO
     transfer: Decimal = ZERO
     promo: Decimal = ZERO
+    warranty_eur: Decimal = ZERO
 
     @property
     def amount(self) -> Decimal:
@@ -114,6 +124,7 @@ class IncomeRow:
             PaymentType.card: self.card,
             PaymentType.transfer: self.transfer,
             PaymentType.promo: self.promo,
+            PaymentType.warranty: self.warranty_eur,
         }.get(method, ZERO)
 
     @property
@@ -153,6 +164,7 @@ class CashReport:
     card_in: Decimal = ZERO
     transfer_in: Decimal = ZERO
     promo_in: Decimal = ZERO
+    warranty_in: Decimal = ZERO
     expense: Decimal = ZERO
     collection: Decimal = ZERO
     by_method: dict[str, Decimal] = field(default_factory=dict)
@@ -367,7 +379,11 @@ def build_cash_report(
         if day < date_from or day > date_to:
             continue
         buckets = {method.value: ZERO for method in VAL_METHODS}
+        warranty_eur = ZERO
         for line in order.lines:
+            if line.payment_type == PaymentType.warranty:
+                warranty_eur += money(line.warranty_eur)
+                continue
             if line.payment_type not in VAL_METHODS:
                 continue
             amount = (
@@ -376,7 +392,7 @@ def build_cash_report(
                 else money(line.client_amount)
             )
             buckets[line.payment_type.value] += amount
-        if all(amount == ZERO for amount in buckets.values()):
+        if all(amount == ZERO for amount in buckets.values()) and warranty_eur == ZERO:
             continue
         assignee = (
             (order.assignee.full_name or order.assignee.login) if order.assignee else ""
@@ -389,6 +405,7 @@ def build_cash_report(
             report.by_method[method.value] = money(
                 report.by_method.get(method.value, ZERO) + amount
             )
+        report.warranty_in = money(report.warranty_in + warranty_eur)
         report.income_rows.append(
             IncomeRow(
                 order_id=order.id,
@@ -399,12 +416,14 @@ def build_cash_report(
                 card=money(buckets[PaymentType.card.value]),
                 transfer=money(buckets[PaymentType.transfer.value]),
                 promo=money(buckets[PaymentType.promo.value]),
+                warranty_eur=money(warranty_eur),
             )
         )
     report.cash_in = money(report.by_method.get(PaymentType.cash.value, ZERO))
     report.card_in = money(report.by_method.get(PaymentType.card.value, ZERO))
     report.transfer_in = money(report.by_method.get(PaymentType.transfer.value, ZERO))
     report.promo_in = money(report.by_method.get(PaymentType.promo.value, ZERO))
+    report.warranty_in = money(report.warranty_in)
     for method in VAL_METHODS:
         report.by_method.setdefault(method.value, ZERO)
 
@@ -492,12 +511,15 @@ def cash_report_xlsx(report: CashReport) -> bytes:
         row_no += 1
     ws.cell(row_no, 1, "Val total")
     ws.cell(row_no, 2, float(report.val))
+    row_no += 1
+    ws.cell(row_no, 1, "Warranty EUR")
+    ws.cell(row_no, 2, float(report.warranty_in))
     if report.income_rows:
         row_no += 2
         ws.cell(row_no, 1, "Orders")
         row_no += 1
         for col, title in enumerate(
-            ("Date", "Order", "Serial", "Assignee", "Cash", "Terminal", "Transfer", "Promo", "Val"),
+            ("Date", "Order", "Serial", "Assignee", "Cash", "Terminal", "Transfer", "Promo", "Val", "Warranty EUR"),
             1,
         ):
             ws.cell(row_no, col, title)
@@ -512,6 +534,7 @@ def cash_report_xlsx(report: CashReport) -> bytes:
             ws.cell(row_no, 7, float(r.transfer))
             ws.cell(row_no, 8, float(r.promo))
             ws.cell(row_no, 9, float(r.amount))
+            ws.cell(row_no, 10, float(r.warranty_eur))
     if report.reconcile_rows:
         row_no += 2
         ws.cell(row_no, 1, "Reconcile")

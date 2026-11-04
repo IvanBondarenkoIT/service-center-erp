@@ -28,6 +28,7 @@ def ensure_schema() -> None:
         ErpClientCache,
         ErpGoodsCache,
         ErpSyncState,
+        OrderEvent,
         PromoOffer,
     )
 
@@ -51,6 +52,8 @@ def ensure_schema() -> None:
         PromoOffer.__table__.create(bind=engine, checkfirst=True)
     if "app_settings" not in existing:
         AppSetting.__table__.create(bind=engine, checkfirst=True)
+    if "order_events" not in existing:
+        OrderEvent.__table__.create(bind=engine, checkfirst=True)
 
     insp = inspect(engine)
     tables = set(insp.get_table_names())
@@ -117,6 +120,11 @@ def ensure_schema() -> None:
                     )
                 else:
                     _try_alter(conn, "ALTER TABLE order_lines ADD COLUMN promo_id INTEGER")
+            if "warranty_eur" not in line_cols:
+                _try_alter(
+                    conn,
+                    "ALTER TABLE order_lines ADD COLUMN warranty_eur NUMERIC(12, 2) NOT NULL DEFAULT 0",
+                )
 
         if dialect == "postgresql":
             _try_alter(conn, "ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'accountant'")
