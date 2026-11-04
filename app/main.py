@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -16,6 +16,7 @@ from app.services.db_migrate import ensure_schema
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 settings = get_settings()
+FAVICON_PATH = BASE_DIR / "static" / "favicon.ico"
 
 app = FastAPI(title=settings.app_name)
 
@@ -57,6 +58,11 @@ def on_startup() -> None:
 @app.get("/health")
 def health():
     return {"status": "ok", "app": settings.app_name}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(FAVICON_PATH, media_type="image/x-icon")
 
 
 @app.exception_handler(NotAuthenticated)

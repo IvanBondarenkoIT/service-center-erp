@@ -14,7 +14,17 @@ def test_login_html_shell(client) -> None:
     html = r.text
     assert 'lang="' in html
     assert "/static/app.css?v=" in html
+    assert 'rel="icon"' in html
+    assert "/favicon.ico" in html
+    assert "/static/favicon-32.png" in html
     assert "cdn.tailwindcss.com" not in html
+
+
+def test_favicon_endpoint(client) -> None:
+    r = client.get("/favicon.ico")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("image/")
+    assert len(r.content) > 100
 
 
 def test_static_assets_are_versioned(client) -> None:
