@@ -56,6 +56,9 @@
       <label>{{ t('orders.status') }}</label>
       {% if order and order.status.value == 'issued' %}
       <p class="status-issued">{{ t('status.issued') }}</p>
+      {% if order.paid_at %}
+      <p class="muted">{{ t('orders.paid_at') }}: {{ order.paid_at|business_dt }}</p>
+      {% endif %}
       <input type="hidden" name="status" value="issued" />
       {% else %}
       <div class="chip-row" data-input="status">
@@ -165,6 +168,9 @@
 <section class="card pay-card">
   <h2>{{ t('orders.pay_summary') }}</h2>
   <p class="order-total">{{ t('orders.client_pay') }}: {{ '%.2f'|format(order.total_amount) }} {{ t('orders.currency') }}</p>
+  {% if order.warranty_eur_total %}
+  <p class="order-total">{{ t('orders.warranty_eur') }}: {{ '%.2f'|format(order.warranty_eur_total) }} {{ t('orders.currency_eur') }}</p>
+  {% endif %}
   {% if pay_summary %}
   <table class="data">
     <tbody>
@@ -173,6 +179,8 @@
         <td>{{ t('payment_type.' + row.method.value) }}</td>
         {% if row.method.value == 'promo' %}
         <td>{{ t('orders.client_pay') }} {{ '%.2f'|format(row.client) }} · {{ t('orders.val_amount') }} {{ '%.2f'|format(row.val) }}</td>
+        {% elif row.method.value == 'garanty' %}
+        <td>{{ '%.2f'|format(row.eur) }} {{ t('orders.currency_eur') }}</td>
         {% else %}
         <td>{{ '%.2f'|format(row.client) }} {{ t('orders.currency') }}</td>
         {% endif %}
@@ -206,6 +214,26 @@
     <button class="btn btn-danger" type="submit">{{ t('admin.delete_order') }}</button>
   </form>
   {% endif %}
+</section>
+{% endif %}
+
+{% if order and order_events is defined %}
+<section class="card">
+  <h2>{{ t('orders.order_history') }}</h2>
+  <table class="data">
+    <tbody>
+      {% for ev in order_events %}
+      <tr>
+        <td class="order-sn">{{ ev.created_at|business_dt }}</td>
+        <td>{{ t('order_event.action.' + ev.action) }}</td>
+        <td class="muted">{{ (ev.user.full_name or ev.user.login) if ev.user else '—' }}</td>
+        <td class="muted">{{ ev.details }}</td>
+      </tr>
+      {% else %}
+      <tr><td class="muted" colspan="4">{{ t('orders.history_empty_events') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </section>
 {% endif %}
 

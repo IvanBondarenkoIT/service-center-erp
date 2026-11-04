@@ -83,7 +83,9 @@
     "empty": "Нет операций за период",
     "mode_accountant": "Режим бухгалтера: только просмотр",
     "order": "Заказ",
-    "till_vs_val": "Касса — только наличные. Вал — нал + терминал + перевод + акция."
+    "till_vs_val": "Касса — только наличные. Вал — нал + терминал + перевод + акция.",
+    "warranty_in": "Гарантия",
+    "warranty_vs_val": "Гарантия EUR — не в кассе и не в вале."
   },
   "locale": {
     "ru": "RU",
@@ -148,7 +150,12 @@
     "work_amount": "Работа",
     "parts_amount": "Запчасти",
     "amount": "Сумма",
-    "warranty_free": "Гарантия (0)",
+    "warranty_free": "Гарантия",
+    "warranty_eur": "Гарантия, EUR",
+    "currency_eur": "EUR",
+    "paid_at": "Оплачен",
+    "order_history": "История заказа",
+    "history_empty_events": "Пока нет событий",
     "part_code": "Код / SN запчасти",
     "status": "Статус",
     "currency": "GEL",
@@ -176,6 +183,7 @@
     "by_center": "Итого по СЦ",
     "by_payment": "Типы оплат",
     "top_reasons": "Частые неисправности",
+    "warranty": "Гарантия, EUR",
     "repeat": "Повторные ремонты",
     "visits": "Обращений",
     "empty": "Нет данных"
@@ -239,6 +247,7 @@
     "active": "Активен",
     "yes": "да",
     "no": "нет",
+    "order_history": "История заказов",
     "audit": "Журнал",
     "audit_all": "Все",
     "who": "Кто",
@@ -275,6 +284,16 @@
       "machine": "Кофеварка",
       "reason": "Причина",
       "promo": "Промо"
+    }
+  },
+  "order_event": {
+    "action": {
+      "created": "Создан",
+      "status": "Статус",
+      "paid": "Оплачен",
+      "reopened": "Возврат в работу",
+      "edited": "Изменён",
+      "deleted": "Удалён"
     }
   },
   "intake": {

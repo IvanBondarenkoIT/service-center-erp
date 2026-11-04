@@ -78,22 +78,34 @@ function setPayChips(card, method, { disabled = false } = {}) {
 
 function syncLineWarranty(card, on) {
   if (!card) return;
-  if ((card.querySelector('input[name="line_type"]')?.value || "") === "promo") return;
+  const typeInput = card.querySelector('input[name="line_type"]');
   const wrap = card.querySelector(".line-amount-wrap");
   const amount = card.querySelector('input[name="amount"]');
+  const eur = card.querySelector('input[name="warranty_eur"]');
+  const promo = card.querySelector('select[name="promo_id"]');
   const locked = Boolean(card.closest(".is-locked"));
+  card.classList.toggle("is-warranty-pay", on);
   if (wrap) wrap.classList.toggle("is-warranty", on);
   if (amount) {
     if (on) amount.value = "0";
     amount.readOnly = on || locked;
   }
   if (on) {
+    if (typeInput && typeInput.value === "promo") {
+      typeInput.value = "work";
+      card.dataset.kind = "work";
+      card.querySelectorAll('[data-input="line_type"] button.chip').forEach((el) => {
+        el.classList.toggle("active", el.dataset.value === "work");
+      });
+    }
+    if (promo) promo.value = "";
     const pay = card.querySelector('input[name="payment_type"]');
     if (pay) pay.value = "garanty";
     setPayChips(card, null, { disabled: true });
-  } else {
-    setPayChips(card, "Cash", { disabled: locked });
+    return;
   }
+  if (eur && !locked) eur.value = "0";
+  setPayChips(card, "Cash", { disabled: locked });
 }
 
 function applyPromo(card) {
@@ -137,6 +149,7 @@ function syncLineKind(card) {
   }
 
   const warrantyOn = card.querySelector('input[name="is_warranty"]')?.value === "1";
+  card.classList.toggle("is-warranty-pay", warrantyOn);
   if (amount) amount.readOnly = warrantyOn || locked;
 
   if (kind === "diagnostic") {

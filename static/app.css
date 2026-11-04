@@ -667,11 +667,30 @@ button.chip-line-promo.active {
 .line-card[data-kind="promo"] .line-part-code,
 .line-card[data-kind="promo"] .line-part-suggest,
 .line-card[data-kind="promo"] .line-pay-row,
-.line-card[data-kind="promo"] .line-warranty-row,
+.line-card[data-kind="promo"] .line-warranty-eur,
 .line-card[data-kind="expense"] .line-promo-wrap,
 .line-card[data-kind="expense"] .line-pay-row,
-.line-card[data-kind="expense"] .line-val-wrap {
+.line-card[data-kind="expense"] .line-val-wrap,
+.line-warranty-eur {
   display: none;
+}
+
+.line-card.is-warranty-pay [data-input="line_type"],
+.line-card.is-warranty-pay .line-promo-wrap,
+.line-card.is-warranty-pay .line-part-code,
+.line-card.is-warranty-pay .line-part-suggest,
+.line-card.is-warranty-pay .line-pay-row,
+.line-card.is-warranty-pay .line-amount-wrap,
+.line-card.is-warranty-pay .line-val-wrap {
+  display: none;
+}
+
+.line-card.is-warranty-pay .line-warranty-eur {
+  display: block;
+}
+
+.line-card.is-warranty-pay .line-card-head {
+  justify-content: flex-end;
 }
 
 .chip-line-expense {
@@ -776,6 +795,38 @@ a.sheet-row:hover { background: #f6f3f2; text-decoration: none; }
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.order-paid {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.order-pay-chips {
+  margin: 8px 0 0;
+  gap: 6px;
+}
+
+.pay-chip {
+  pointer-events: none;
+  min-height: 24px;
+  font-size: 9px;
+  cursor: default;
+}
+
+.pay-chip-Cash { border-color: #2c4a3e; color: #2c4a3e; }
+.pay-chip-Card { border-color: #3d5a80; color: #3d5a80; }
+.pay-chip-perechisleniye { border-color: #5c4a2e; color: #5c4a2e; }
+.pay-chip-promo { border-color: #6b3d6a; color: #6b3d6a; }
+.pay-chip-garanty { border-color: #5c6b4a; color: #5c6b4a; }
+
+.order-eur {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5c6b4a;
 }
 
 .order-total {

@@ -93,6 +93,7 @@ def reports_home(
             "by_payment": sorted(by_payment.items()),
             "val_rows": cash.val_rows,
             "val": cash.val,
+            "warranty_in": cash.warranty_in,
             "top_reasons": top_reasons,
             "repeat_machines": machine_counts,
         },

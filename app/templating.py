@@ -6,7 +6,10 @@ from pathlib import Path
 from fastapi import Request
 from fastapi.templating import Jinja2Templates
 
+from datetime import datetime
+
 from app.i18n import SUPPORTED_LOCALES, make_translator, resolve_locale
+from app.services.cash_book import as_business_datetime
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,8 +31,20 @@ def _asset_version() -> str:
     return digest.hexdigest()[:10]
 
 
+def _business_dt(value: datetime | None) -> str:
+    local = as_business_datetime(value)
+    return local.strftime("%d.%m.%Y %H:%M") if local else ""
+
+
+def _business_day(value: datetime | None) -> str:
+    local = as_business_datetime(value)
+    return local.strftime("%d.%m.%Y") if local else ""
+
+
 templates = Jinja2Templates(
     directory=str(BASE_DIR / "templates"),
     context_processors=[_i18n_context],
 )
 templates.env.globals["asset_v"] = _asset_version()
+templates.env.filters["business_dt"] = _business_dt
+templates.env.filters["business_day"] = _business_day

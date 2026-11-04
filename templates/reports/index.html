@@ -3,6 +3,7 @@
 {% block content %}
 <div class="toolbar">
   <h1>{{ t('reports.title') }}</h1>
+  <a class="btn btn-secondary" href="/admin/order-history">{{ t('admin.order_history') }}</a>
 </div>
 
 <form method="get" action="/reports" class="card order-filters">
@@ -74,6 +75,14 @@
       </tr>
     </tbody>
   </table>
+</section>
+
+<section class="card flush" data-warranty-in="{{ '%.2f'|format(warranty_in) }}">
+  <div class="section-head">
+    <h2>{{ t('reports.warranty') }}</h2>
+    <span class="order-total">{{ '%.2f'|format(warranty_in) }} {{ t('orders.currency_eur') }}</span>
+  </div>
+  <p class="muted" style="padding: 0 12px 12px">{{ t('cash.warranty_vs_val') }}</p>
 </section>
 
 <div class="grid-2">

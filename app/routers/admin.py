@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+from datetime import date
+from decimal import Decimal, InvalidOperation
+
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from decimal import Decimal, InvalidOperation
-
 from app.auth import hash_password
 from app.database import get_db
-from app.deps import require_admin_screen
+from app.deps import require_admin_or_accountant, require_admin_screen
 from app.models import OrderLine, PromoOffer, ServiceCenter, User, UserRole
 from app.services.audit import ENTITIES, diff_text, log_action, recent_audit
+from app.services.cash_book import business_today
+from app.services.order_events import ORDER_EVENT_ACTIONS, recent_order_events
 from app.services.prices import diagnostic_price, set_diagnostic_price
 from app.templating import templates
 
@@ -205,6 +208,44 @@ def audit_page(
             "entries": recent_audit(db, entity=entity),
             "entities": ENTITIES,
             "entity": entity,
+        },
+    )
+
+
+@router.get("/order-history", response_class=HTMLResponse)
+def order_history_page(
+    request: Request,
+    date_from: str = Query(""),
+    date_to: str = Query(""),
+    center_id: int | None = Query(None),
+    action: str = Query(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin_or_accountant),
+):
+    today = business_today()
+    d_from = date.fromisoformat(date_from) if date_from else today.replace(day=1)
+    d_to = date.fromisoformat(date_to) if date_to else today
+    event_action = action if action in ORDER_EVENT_ACTIONS else ""
+    entries = recent_order_events(
+        db,
+        center_id=center_id,
+        action=event_action,
+        date_from=d_from,
+        date_to=d_to,
+        limit=300,
+    )
+    return templates.TemplateResponse(
+        request,
+        "admin/order_history.html",
+        {
+            "user": user,
+            "entries": entries,
+            "actions": ORDER_EVENT_ACTIONS,
+            "action": event_action,
+            "date_from": d_from.isoformat(),
+            "date_to": d_to.isoformat(),
+            "center_id": center_id,
+            "centers": _centers(db),
         },
     )
 

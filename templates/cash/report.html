@@ -77,6 +77,7 @@
 </section>
 <p class="muted text-end">{{ t('cash.formula') }}</p>
 <p class="muted">{{ t('cash.till_vs_val') }}</p>
+<p class="muted" data-warranty-in="{{ '%.2f'|format(report.warranty_in) }}">{{ t('cash.warranty_vs_val') }} {{ '%.2f'|format(report.warranty_in) }} {{ t('orders.currency_eur') }}</p>
 
 {% if report.reconcile_rows %}
 <section class="card flush">
@@ -125,7 +126,8 @@
   'Cash': 'cash.cash_in',
   'Card': 'cash.card_in',
   'perechisleniye': 'cash.transfer_in',
-  'promo': 'cash.promo_in'
+  'promo': 'cash.promo_in',
+  'garanty': 'cash.warranty_in'
 } %}
 <section class="card flush"
   data-card-in="{{ '%.2f'|format(report.card_in) }}"
@@ -176,6 +178,7 @@
         <th>{{ t('cash.transfer_in') }}</th>
         <th>{{ t('cash.promo_in') }}</th>
         <th>{{ t('cash.val') }}</th>
+        <th>{{ t('cash.warranty_in') }}</th>
       </tr>
     </thead>
     <tbody>
@@ -192,9 +195,10 @@
         <td class="order-sn {% if not row.transfer %}amt-zero{% endif %}">{% if row.transfer %}{{ '%.2f'|format(row.transfer) }}{% else %}—{% endif %}</td>
         <td class="order-sn {% if not row.promo %}amt-zero{% endif %}">{% if row.promo %}{{ '%.2f'|format(row.promo) }}{% else %}—{% endif %}</td>
         <td class="order-sn"><strong>{{ '%.2f'|format(row.amount) }}</strong></td>
+        <td class="order-sn {% if not row.warranty_eur %}amt-zero{% endif %}">{% if row.warranty_eur %}{{ '%.2f'|format(row.warranty_eur) }} {{ t('orders.currency_eur') }}{% else %}—{% endif %}</td>
       </tr>
       {% else %}
-      <tr><td colspan="7" class="muted">{{ t('cash.empty') }}</td></tr>
+      <tr><td colspan="8" class="muted">{{ t('cash.empty') }}</td></tr>
       {% endfor %}
     </tbody>
   </table>

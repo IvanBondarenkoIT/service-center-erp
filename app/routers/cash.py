@@ -70,7 +70,9 @@ def _pay_filter(raw: str) -> PaymentType | None:
         method = PaymentType(raw)
     except ValueError:
         return None
-    return method if method in VAL_METHODS else None
+    if method in VAL_METHODS or method == PaymentType.warranty:
+        return method
+    return None
 
 
 @router.get("/cash", response_class=HTMLResponse)
@@ -99,7 +101,7 @@ def cash_report(
             "report": report,
             "income_rows": income_rows,
             "pay_filter": pay_filter,
-            "pay_methods": VAL_METHODS,
+            "pay_methods": VAL_METHODS + (PaymentType.warranty,),
             "centers": centers,
             "date_from": d_from.isoformat(),
             "date_to": d_to.isoformat(),

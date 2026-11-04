@@ -42,6 +42,16 @@
     <div class="order-card-mid">
       <span class="order-model">{{ o.machine.model_name or '—' }}</span>
       <span class="order-sn">SN: {{ o.machine.serial_number }}</span>
+      {% if o.paid_at %}
+      <span class="order-paid">{{ t('orders.paid_at') }} {{ o.paid_at|business_day }}</span>
+      {% endif %}
+      {% if o.list_pay_methods %}
+      <div class="chip-row order-pay-chips">
+        {% for m in o.list_pay_methods %}
+        <span class="chip pay-chip pay-chip-{{ m.value }}">{{ t('payment_type.' + m.value) }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
     <div class="order-card-bottom">
       <div>
@@ -50,7 +60,12 @@
           {% if o.client %}{{ o.client.name or '—' }} / {{ o.client.phone }}{% else %}—{% endif %}
         </span>
       </div>
-      <span class="order-total">{{ '%.2f'|format(o.total_amount) }} {{ t('orders.currency') }}</span>
+      <span class="order-total">
+        {{ '%.2f'|format(o.total_amount) }} {{ t('orders.currency') }}
+        {% if o.warranty_eur_total %}
+        <span class="order-eur">{{ '%.2f'|format(o.warranty_eur_total) }} {{ t('orders.currency_eur') }}</span>
+        {% endif %}
+      </span>
     </div>
   </a>
   {% else %}

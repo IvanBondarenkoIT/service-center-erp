@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}{{ t('admin.order_history') }} — {{ t('app.name') }}{% endblock %}
+{% block content %}
+<div class="toolbar">
+  <h1>{{ t('admin.order_history') }}</h1>
+</div>
+
+<form method="get" action="/admin/order-history" class="card order-filters">
+  <div>
+    <label>{{ t('cash.period_from') }}</label>
+    <input type="date" name="date_from" value="{{ date_from }}" />
+  </div>
+  <div>
+    <label>{{ t('cash.period_to') }}</label>
+    <input type="date" name="date_to" value="{{ date_to }}" />
+  </div>
+  <div>
+    <label>{{ t('cash.center') }}</label>
+    <select name="center_id">
+      <option value="">{{ t('cash.all_centers') }}</option>
+      {% for c in centers %}
+      <option value="{{ c.id }}" {% if center_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label>{{ t('admin.what') }}</label>
+    <select name="action">
+      <option value="">{{ t('orders.filter_all') }}</option>
+      {% for a in actions %}
+      <option value="{{ a }}" {% if action == a %}selected{% endif %}>{{ t('order_event.action.' + a) }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button class="btn" type="submit">{{ t('cash.show') }}</button>
+</form>
+
+<div class="card">
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>{{ t('cash.date') }}</th>
+        <th>{{ t('admin.who') }}</th>
+        <th>{{ t('admin.what') }}</th>
+        <th>{{ t('cash.order') }}</th>
+        <th>{{ t('admin.details') }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for a in entries %}
+      <tr>
+        <td class="input-mono">{{ a.created_at|business_dt }}</td>
+        <td>{{ (a.user.full_name or a.user.login) if a.user else '—' }}</td>
+        <td>{{ t('order_event.action.' + a.action) }}</td>
+        <td><a href="/orders/{{ a.order_id }}">#{{ a.order_id }}</a></td>
+        <td class="muted">{{ a.details }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="muted">{{ t('dict.empty') }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -71,6 +71,15 @@ class PaymentType(str, enum.Enum):
     promo = "promo"
 
 
+LIST_PAY_METHODS = (
+    PaymentType.cash,
+    PaymentType.card,
+    PaymentType.transfer,
+    PaymentType.promo,
+    PaymentType.warranty,
+)
+
+
 class ServiceCenter(Base):
     __tablename__ = "service_centers"
 
@@ -205,6 +214,18 @@ class ServiceOrder(Base):
             total += line.report_val
         return total
 
+    @property
+    def warranty_eur_total(self) -> Decimal:
+        total = Decimal("0")
+        for line in self.lines:
+            total += line.warranty_eur or Decimal("0")
+        return total.quantize(Decimal("0.01"))
+
+    @property
+    def list_pay_methods(self) -> list[PaymentType]:
+        present = {line.payment_type for line in self.lines}
+        return [method for method in LIST_PAY_METHODS if method in present]
+
 
 class PromoOffer(Base):
     __tablename__ = "promo_offers"
@@ -245,6 +266,7 @@ class OrderLine(Base):
     amount_work: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     amount_parts: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     val_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
+    warranty_eur: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     promo_id: Mapped[Optional[int]] = mapped_column(ForeignKey("promo_offers.id"), nullable=True)
 
     order: Mapped[ServiceOrder] = relationship(back_populates="lines")
@@ -354,6 +376,20 @@ class CashOpening(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     service_center: Mapped[ServiceCenter] = relationship(back_populates="cash_openings")
+
+
+class OrderEvent(Base):
+    __tablename__ = "order_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    order_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    service_center_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    action: Mapped[str] = mapped_column(String(32), nullable=False)
+    details: Mapped[str] = mapped_column(Text, nullable=False, default="")
+
+    user: Mapped[Optional[User]] = relationship()
 
 
 class AuditLog(Base):
