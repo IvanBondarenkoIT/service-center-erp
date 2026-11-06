@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.database import SessionLocal
-from app.models import OrderStatus, PaymentType, ServiceOrder
+from app.models import Machine, OrderStatus, PaymentType, ServiceOrder
 from tests.helpers import login, settings, user_ids
 
 
@@ -49,6 +49,10 @@ def _payload(login_name: str, serial: str, **extra) -> dict[str, str]:
     }
     if extra.get("order_id"):
         data["order_id"] = str(extra["order_id"])
+    if extra.get("machine_id") is not None:
+        data["machine_id"] = str(extra["machine_id"])
+    if extra.get("no_machine"):
+        data["no_machine"] = str(extra["no_machine"])
     return data
 
 
@@ -154,6 +158,128 @@ def test_fake_no_serial_becomes_placeholder(client) -> None:
     assert a.machine.needs_serial and b.machine.needs_serial
     assert a.machine.model_name == "Shared?"
     assert b.machine.model_name == "Other"
+
+
+def _two_orders_on_fake_serial(fake_serial: str, model: str = "Glued") -> tuple[int, int, int]:
+    """Legacy glued state: two orders share Machine(serial=fake_serial)."""
+    user_id, center_id = user_ids("mechanic_batumi")
+    db = SessionLocal()
+    try:
+        machine = Machine(
+            serial_number=fake_serial,
+            model_name=model,
+            needs_serial=False,
+        )
+        db.add(machine)
+        db.flush()
+        a = ServiceOrder(
+            order_date=date.today(),
+            assignee_id=user_id,
+            service_center_id=center_id,
+            machine_id=machine.id,
+            status=OrderStatus.in_progress,
+        )
+        b = ServiceOrder(
+            order_date=date.today(),
+            assignee_id=user_id,
+            service_center_id=center_id,
+            machine_id=machine.id,
+            status=OrderStatus.in_progress,
+        )
+        db.add_all([a, b])
+        db.commit()
+        return machine.id, a.id, b.id
+    finally:
+        db.close()
+
+
+def test_edit_empty_sn_detaches_from_shared_no(client) -> None:
+    machine_id, oid_a, oid_b = _two_orders_on_fake_serial("NO", model="Shared NO")
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    form = client.get(f"/orders/{oid_a}")
+    assert form.status_code == 200
+    assert 'name="no_machine"' in form.text
+    assert 'id="no_machine"' in form.text
+    assert "checked" in form.text.split('id="no_machine"', 1)[1][:120]
+    serial_chunk = form.text.split('id="new_machine_serial"', 1)[1][:280]
+    assert "NO" not in serial_chunk or 'value=""' in serial_chunk
+
+    r = _save(
+        client,
+        "mechanic_batumi",
+        settings.seed_mechanic_password,
+        "",
+        order_id=oid_a,
+        machine_id=machine_id,
+        model="Parts only",
+    )
+    assert r.status_code == 303
+    a = _load_order(oid_a)
+    b = _load_order(oid_b)
+    assert a is not None and b is not None
+    assert a.machine_id != machine_id
+    assert a.machine.needs_serial is True
+    assert a.machine.serial_number.startswith("NEED-SERIAL-")
+    assert a.machine.serial_number != "NO"
+    assert a.machine.model_name == "Parts only"
+    assert b.machine_id == machine_id
+    assert b.machine.serial_number == "NO"
+
+
+def test_edit_no_machine_checkbox_detaches_even_if_sn_filled(client) -> None:
+    machine_id, oid_a, oid_b = _two_orders_on_fake_serial("-", model="Dash glued")
+    r = _save(
+        client,
+        "mechanic_batumi",
+        settings.seed_mechanic_password,
+        "-",
+        order_id=oid_a,
+        machine_id=machine_id,
+        no_machine="1",
+        model="Detached",
+    )
+    assert r.status_code == 303
+    a = _load_order(oid_a)
+    b = _load_order(oid_b)
+    assert a is not None and b is not None
+    assert a.machine_id != machine_id
+    assert a.machine.needs_serial is True
+    assert a.machine.serial_number.startswith("NEED-SERIAL-")
+    assert b.machine_id == machine_id
+    assert b.machine.serial_number == "-"
+
+
+def test_edit_need_serial_keeps_same_machine(client) -> None:
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    created = client.post(
+        "/orders/save",
+        data=_payload("mechanic_batumi", "", model="Placeholder"),
+        follow_redirects=False,
+    )
+    assert created.status_code == 303
+    oid = _order_id(created.headers["location"])
+    before = _load_order(oid)
+    assert before is not None
+    mid = before.machine_id
+    serial = before.machine.serial_number
+
+    r = _save(
+        client,
+        "mechanic_batumi",
+        settings.seed_mechanic_password,
+        "",
+        order_id=oid,
+        machine_id=mid,
+        model="Placeholder updated",
+        no_machine="1",
+    )
+    assert r.status_code == 303
+    after = _load_order(oid)
+    assert after is not None
+    assert after.machine_id == mid
+    assert after.machine.serial_number == serial
+    assert after.machine.needs_serial is True
+    assert after.machine.model_name == "Placeholder updated"
 
 
 def test_status_change_shows_on_list_card(client) -> None:

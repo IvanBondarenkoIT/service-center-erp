@@ -228,3 +228,18 @@ document.addEventListener("click", (event) => {
     if (sub) sub.hidden = input.value !== "collection";
   }
 });
+
+(function bindNoMachineCheckbox() {
+  const box = document.getElementById("no_machine");
+  const serialInput = document.getElementById("new_machine_serial");
+  if (!box || !serialInput) return;
+  box.addEventListener("change", () => {
+    if (box.checked) {
+      serialInput.value = "";
+      serialInput.dispatchEvent(new Event("keyup", { bubbles: true }));
+    }
+  });
+  serialInput.addEventListener("input", () => {
+    if (serialInput.value.trim() && box.checked) box.checked = false;
+  });
+})();

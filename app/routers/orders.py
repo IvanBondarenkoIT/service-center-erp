@@ -46,6 +46,7 @@ from app.services.cash_book import (
 from app.services.prices import active_promos, diagnostic_price
 from app.config import get_settings
 from app.services.serial_scan import (
+    is_blank_serial,
     make_placeholder_serial,
     normalize_machine_serial,
     serial_from_scan,
@@ -546,8 +547,13 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
     if order and order.assignee and order.assignee not in mechanics:
         mechanics.append(order.assignee)
     history = []
-    if order and order.machine and not order.machine.needs_serial:
-        history = _machine_history(db, order.machine.id, exclude_order_id=order.id)
+    serial_is_blank = False
+    if order and order.machine:
+        serial_is_blank = bool(order.machine.needs_serial) or is_blank_serial(
+            order.machine.serial_number
+        )
+        if not serial_is_blank:
+            history = _machine_history(db, order.machine.id, exclude_order_id=order.id)
     return templates.TemplateResponse(
         request,
         "orders/form.html",
@@ -576,6 +582,7 @@ def _order_form(request: Request, db: Session, user: User, order: ServiceOrder |
             "read_only": user.role == UserRole.accountant,
             "closed_period": bool(order and _paid_in_closed_period(db, order)),
             "order_events": recent_order_events(db, order_id=order.id, limit=80) if order else [],
+            "serial_is_blank": serial_is_blank,
         },
     )
 
@@ -630,18 +637,44 @@ async def order_save(
 
     # Machine: existing id or create (blank SN = unique placeholder, not a shared "")
     machine_id_raw = str(form.get("machine_id") or "").strip()
-    new_serial = normalize_machine_serial(str(form.get("new_machine_serial") or ""))
+    force_no_machine = str(form.get("no_machine") or "").strip().lower() in {
+        "1",
+        "true",
+        "on",
+        "yes",
+    }
+    new_serial = "" if force_no_machine else normalize_machine_serial(
+        str(form.get("new_machine_serial") or "")
+    )
     new_model = str(form.get("new_machine_model") or "").strip()
     erp_goods_id_raw = str(form.get("erp_goods_id") or "").strip()
     erp_goods_id = int(erp_goods_id_raw) if erp_goods_id_raw.isdigit() else None
+    current_machine = (
+        db.get(Machine, int(machine_id_raw)) if machine_id_raw.isdigit() else None
+    )
 
     if new_serial:
         machine = _ensure_machine(db, new_serial, new_model, erp_goods_id)
-    elif machine_id_raw.isdigit():
-        # Keep current machine when SN field is empty (parts-only / needs_serial edit).
-        machine = db.get(Machine, int(machine_id_raw))
-        if not machine:
-            raise HTTPException(400, "Кофеварка не найдена")
+    elif force_no_machine or (
+        current_machine is not None and is_blank_serial(current_machine.serial_number)
+    ):
+        # Checkbox or glued fake SN (NO/нет/-): detach onto a unique placeholder.
+        # If the order already has NEED-SERIAL-*, keep it (don't spawn on every Save).
+        if (
+            current_machine is not None
+            and current_machine.needs_serial
+            and not is_blank_serial(current_machine.serial_number)
+        ):
+            machine = current_machine
+            if new_model or machine.needs_serial:
+                machine.model_name = new_model
+            if erp_goods_id:
+                machine.erp_goods_id = erp_goods_id
+        else:
+            machine = _ensure_machine(db, "", new_model, erp_goods_id)
+    elif current_machine is not None:
+        # Keep unique NEED-SERIAL placeholder or a real machine when SN field is empty.
+        machine = current_machine
         if new_model or machine.needs_serial:
             machine.model_name = new_model
         if erp_goods_id:
