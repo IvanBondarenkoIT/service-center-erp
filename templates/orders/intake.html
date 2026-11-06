@@ -6,9 +6,7 @@
   <a class="btn btn-secondary" href="/">{{ t('orders.back') }}</a>
 </div>
 
-{% if error == 'sn_required' %}
-<p class="flash-error">{{ t('orders.sn_missing') }}</p>
-{% elif error == 'phone_required' %}
+{% if error == 'phone_required' %}
 <p class="flash-error">{{ t('intake.phone_required') }}</p>
 {% endif %}
 
@@ -39,14 +37,15 @@
   <section class="card">
     <h2>{{ t('orders.machine') }}</h2>
     <div>
-      <label for="new_machine_serial">{{ t('orders.serial') }} *</label>
-      <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono" required
+      <label for="new_machine_serial">{{ t('orders.serial') }}</label>
+      <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono"
         placeholder="SN"
         value="{{ serial }}"
         hx-get="/orders/partials/history"
         hx-trigger="keyup changed delay:400ms, scan-done"
         hx-target="#history-box"
         hx-vals="js:{serial: document.getElementById('new_machine_serial').value}" />
+      <p class="muted field-hint">{{ t('orders.serial_optional_hint') }}</p>
       <div class="scan-actions field-gap">
         <label class="btn btn-secondary scan-camera-btn" id="scan-camera-btn">
           <input id="scan-file-input" class="scan-file-input" type="file"

@@ -103,7 +103,9 @@ def test_excel_import_marks_orders_issued(tmp_path, client) -> None:
         assert order.status == OrderStatus.issued
         assert order.paid_at is not None
         assert order.paid_at.date() == date(2018, 5, 10)
+        assert order.machine.needs_serial is True
         serial = order.machine.serial_number
+        order_id = order.id
         center_id = order.service_center_id
     finally:
         db.close()
@@ -120,7 +122,9 @@ def test_excel_import_marks_orders_issued(tmp_path, client) -> None:
         },
     )
     assert page.status_code == 200
-    assert serial in page.text
+    # Placeholder SN stays internal; cash shows order id instead.
+    assert f"#{order_id}" in page.text
+    assert serial not in page.text
 
 
 def test_excel_import_skips_duplicates(tmp_path) -> None:

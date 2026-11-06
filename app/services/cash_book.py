@@ -397,7 +397,11 @@ def build_cash_report(
         assignee = (
             (order.assignee.full_name or order.assignee.login) if order.assignee else ""
         )
-        note = (order.machine.serial_number if order.machine else "") or f"#{order.id}"
+        if order.machine and not order.machine.needs_serial:
+            note = order.machine.serial_number or ""
+        else:
+            note = ""
+        note = note or f"#{order.id}"
         for method in VAL_METHODS:
             amount = money(buckets[method.value])
             if amount == ZERO:

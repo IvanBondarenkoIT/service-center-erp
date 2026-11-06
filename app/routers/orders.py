@@ -44,7 +44,12 @@ from app.services.cash_book import (
     money,
 )
 from app.services.prices import active_promos, diagnostic_price
-from app.services.serial_scan import serial_from_scan
+from app.config import get_settings
+from app.services.serial_scan import (
+    make_placeholder_serial,
+    normalize_machine_serial,
+    serial_from_scan,
+)
 from app.templating import templates
 
 router = APIRouter(tags=["orders"])
@@ -128,9 +133,20 @@ def _ensure_machine(
     model_name: str,
     erp_goods_id: int | None = None,
 ) -> Machine:
-    serial = (serial or "").strip()
+    serial = normalize_machine_serial(serial)
     if not serial:
-        raise HTTPException(status_code=400, detail="sn_required")
+        # Parts-only / no device: unique placeholder so blanks never share history.
+        prefix = get_settings().import_placeholder_serial_prefix
+        serial = make_placeholder_serial(prefix)
+        machine = Machine(
+            serial_number=serial,
+            model_name=model_name or "",
+            erp_goods_id=erp_goods_id,
+            needs_serial=True,
+        )
+        db.add(machine)
+        db.flush()
+        return machine
     machine = db.scalar(select(Machine).where(Machine.serial_number == serial))
     if machine:
         if model_name:
@@ -420,7 +436,7 @@ async def order_intake_submit(
     user: User = Depends(get_staff_user),
 ):
     form = await request.form()
-    serial = serial_from_scan(str(form.get("new_machine_serial") or ""))
+    serial = normalize_machine_serial(str(form.get("new_machine_serial") or ""))
     phone = str(form.get("new_client_phone") or "").strip()
     name = str(form.get("new_client_name") or "").strip()
     model = str(form.get("new_machine_model") or "").strip()
@@ -443,8 +459,6 @@ async def order_intake_submit(
             status_code=400,
         )
 
-    if not serial:
-        return fail("sn_required")
     if not phone_n:
         return fail("phone_required")
 
@@ -614,9 +628,9 @@ async def order_save(
         if user.service_center_id:
             service_center_id = user.service_center_id
 
-    # Machine: existing id or create
+    # Machine: existing id or create (blank SN = unique placeholder, not a shared "")
     machine_id_raw = str(form.get("machine_id") or "").strip()
-    new_serial = str(form.get("new_machine_serial") or "").strip()
+    new_serial = normalize_machine_serial(str(form.get("new_machine_serial") or ""))
     new_model = str(form.get("new_machine_model") or "").strip()
     erp_goods_id_raw = str(form.get("erp_goods_id") or "").strip()
     erp_goods_id = int(erp_goods_id_raw) if erp_goods_id_raw.isdigit() else None
@@ -624,13 +638,16 @@ async def order_save(
     if new_serial:
         machine = _ensure_machine(db, new_serial, new_model, erp_goods_id)
     elif machine_id_raw.isdigit():
+        # Keep current machine when SN field is empty (parts-only / needs_serial edit).
         machine = db.get(Machine, int(machine_id_raw))
         if not machine:
             raise HTTPException(400, "Кофеварка не найдена")
-        if new_model:
+        if new_model or machine.needs_serial:
             machine.model_name = new_model
+        if erp_goods_id:
+            machine.erp_goods_id = erp_goods_id
     else:
-        raise HTTPException(400, "sn_required")
+        machine = _ensure_machine(db, "", new_model, erp_goods_id)
 
     # Client
     client_id_raw = str(form.get("client_id") or "").strip()

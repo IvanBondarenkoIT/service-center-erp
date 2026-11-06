@@ -8,7 +8,11 @@ from sqlalchemy.orm import joinedload
 
 from app.database import SessionLocal
 from app.models import OrderEvent, OrderStatus, ServiceOrder
-from app.services.serial_scan import serial_from_scan
+from app.services.serial_scan import (
+    is_blank_serial,
+    normalize_machine_serial,
+    serial_from_scan,
+)
 from tests.helpers import login, settings, user_ids
 
 
@@ -31,6 +35,15 @@ def test_serial_from_scan_plain_and_url() -> None:
     assert serial_from_scan("sn:DELONGHI1") == "DELONGHI1"
 
 
+def test_blank_and_fake_serial_normalize() -> None:
+    assert is_blank_serial("")
+    assert is_blank_serial("NO")
+    assert is_blank_serial("нет")
+    assert is_blank_serial("-")
+    assert normalize_machine_serial("NO") == ""
+    assert normalize_machine_serial("ABC-1") == "ABC-1"
+
+
 def test_orders_new_redirects_to_intake(client) -> None:
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
     r = client.get("/orders/new", follow_redirects=False)
@@ -38,14 +51,33 @@ def test_orders_new_redirects_to_intake(client) -> None:
     assert r.headers["location"] == "/orders/intake"
 
 
-def test_intake_requires_serial_and_phone(client) -> None:
+def test_intake_allows_blank_serial_requires_phone(client) -> None:
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
-    no_sn = client.post(
+    blank_sn = client.post(
         "/orders/intake",
-        data={"new_client_phone": _phone(), "new_client_name": "A", "new_machine_serial": ""},
+        data={
+            "new_client_phone": _phone(),
+            "new_client_name": "Parts",
+            "new_machine_serial": "",
+            "new_machine_model": "",
+        },
         follow_redirects=False,
     )
-    assert no_sn.status_code == 400
+    assert blank_sn.status_code == 303
+    oid = _order_id(blank_sn.headers["location"])
+    db = SessionLocal()
+    try:
+        order = db.scalar(
+            select(ServiceOrder)
+            .options(joinedload(ServiceOrder.machine))
+            .where(ServiceOrder.id == oid)
+        )
+        assert order is not None
+        assert order.machine.needs_serial is True
+        assert order.machine.serial_number.startswith("NEED-SERIAL-")
+        assert order.machine.model_name == ""
+    finally:
+        db.close()
     no_phone = client.post(
         "/orders/intake",
         data={"new_client_phone": "", "new_machine_serial": _serial()},

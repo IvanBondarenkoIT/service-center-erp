@@ -92,11 +92,68 @@ def test_create_order_default_status_and_total(client) -> None:
     assert order.machine.serial_number == serial
 
 
-def test_serial_required(client) -> None:
+def test_blank_serial_creates_unique_placeholder(client) -> None:
     login(client, "mechanic_batumi", settings.seed_mechanic_password)
-    payload = _payload("mechanic_batumi", "")
+    payload = _payload("mechanic_batumi", "", model="")
     r = client.post("/orders/save", data=payload, follow_redirects=False)
-    assert r.status_code == 400
+    assert r.status_code == 303
+    oid = _order_id(r.headers["location"])
+    order = _load_order(oid)
+    assert order is not None
+    assert order.machine.needs_serial is True
+    assert order.machine.serial_number.startswith("NEED-SERIAL-")
+    assert order.machine.model_name == ""
+    listing = client.get("/", params={"status": "all"})
+    assert listing.status_code == 200
+    assert "SN: —" in listing.text
+    assert order.machine.serial_number not in listing.text
+
+
+def test_blank_serials_do_not_share_machine(client) -> None:
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    first = client.post(
+        "/orders/save",
+        data=_payload("mechanic_batumi", "", model=""),
+        follow_redirects=False,
+    )
+    second = client.post(
+        "/orders/save",
+        data=_payload("mechanic_batumi", "", model=""),
+        follow_redirects=False,
+    )
+    assert first.status_code == 303
+    assert second.status_code == 303
+    a = _load_order(_order_id(first.headers["location"]))
+    b = _load_order(_order_id(second.headers["location"]))
+    assert a is not None and b is not None
+    assert a.machine_id != b.machine_id
+    assert a.machine.serial_number != b.machine.serial_number
+    assert a.machine.needs_serial and b.machine.needs_serial
+
+
+def test_fake_no_serial_becomes_placeholder(client) -> None:
+    login(client, "mechanic_batumi", settings.seed_mechanic_password)
+    first = client.post(
+        "/orders/save",
+        data=_payload("mechanic_batumi", "NO", model="Shared?"),
+        follow_redirects=False,
+    )
+    second = client.post(
+        "/orders/save",
+        data=_payload("mechanic_batumi", "no", model="Other"),
+        follow_redirects=False,
+    )
+    assert first.status_code == 303
+    assert second.status_code == 303
+    a = _load_order(_order_id(first.headers["location"]))
+    b = _load_order(_order_id(second.headers["location"]))
+    assert a is not None and b is not None
+    assert a.machine_id != b.machine_id
+    assert a.machine.serial_number != "NO"
+    assert b.machine.serial_number != "NO"
+    assert a.machine.needs_serial and b.machine.needs_serial
+    assert a.machine.model_name == "Shared?"
+    assert b.machine.model_name == "Other"
 
 
 def test_status_change_shows_on_list_card(client) -> None:
