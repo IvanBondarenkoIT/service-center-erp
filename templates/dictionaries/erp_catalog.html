@@ -3,7 +3,7 @@
 {% block content %}
 <div class="toolbar">
   <h1>{{ t('nav.erp_catalog') }}</h1>
-  <div class="chip-row tight">
+  <div class="chip-row tight hscroll">
     <form method="post" action="/dict/erp-catalog/sync">
       <input type="hidden" name="mode" value="incremental" />
       <button class="btn" type="submit">{{ t('dict.sync_incremental') }}</button>
@@ -58,8 +58,9 @@
   <div class="search-field">
     <label for="erp-search">{{ t('orders.search') }}</label>
     <div class="search-input">
-      <span class="material-symbols-outlined">search</span>
-      <input id="erp-search" name="q" value="{{ q }}" />
+      {% from "partials/icon.html" import icon %}
+      {{ icon('search') }}
+      <input id="erp-search" type="search" name="q" enterkeyhint="search" value="{{ q }}" />
     </div>
   </div>
   <div>

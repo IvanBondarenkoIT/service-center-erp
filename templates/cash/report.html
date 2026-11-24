@@ -160,7 +160,7 @@
     <h2>{{ t('cash.income') }}</h2>
     <span class="order-total">{{ t('cash.val') }} {{ '%.2f'|format(report.val) }} · {{ t('cash.cash_in') }} {{ '%.2f'|format(report.cash_in) }} {{ t('orders.currency') }}</span>
   </div>
-  <div class="chip-row filter-chips no-print">
+  <div class="chip-row filter-chips hscroll no-print">
     <a class="chip {% if not pay_filter %}active{% endif %}" href="/cash?{{ filter_qs }}">{{ t('orders.filter_all') }}</a>
     {% for m in pay_methods %}
     <a class="chip {% if pay_filter and pay_filter.value == m.value %}active{% endif %}"

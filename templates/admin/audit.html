@@ -5,7 +5,7 @@
   <h1>{{ t('admin.audit') }}</h1>
 </div>
 
-<div class="chip-row">
+<div class="chip-row hscroll">
   <a class="chip {% if not entity %}active{% endif %}" href="/admin/audit">{{ t('admin.audit_all') }}</a>
   {% for e in entities %}
   <a class="chip {% if entity == e %}active{% endif %}" href="/admin/audit?entity={{ e }}">{{ t('audit.entity.' + e) }}</a>

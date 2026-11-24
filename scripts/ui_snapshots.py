@@ -493,19 +493,27 @@ METRIC_JS = """
   }
 
   const fields = Array.from(document.querySelectorAll('input, select, textarea'));
+  const skipTypes = new Set([
+    'hidden', 'checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'image', 'range', 'color',
+  ]);
   let smallFont = 0;
   for (const el of fields) {
-    if (el.type === 'hidden') continue;
+    if (skipTypes.has(el.type || '')) continue;
     if (!isVisible(el)) continue;
     const fs = parseFloat(getComputedStyle(el).fontSize || '0');
     if (fs > 0 && fs < 16) smallFont += 1;
   }
 
   const clipped = [];
-  const seen = new Set();
   const all = Array.from(document.querySelectorAll('body *'));
   for (const el of all) {
     if (!isVisible(el)) continue;
+    if (el.closest && el.closest('.hscroll')) continue;
+    let ancestorHit = false;
+    for (const prev of clipped) {
+      if (prev._el && prev._el.contains(el)) { ancestorHit = true; break; }
+    }
+    if (ancestorHit) continue;
     const st = getComputedStyle(el);
     const ox = st.overflowX;
     const r = el.getBoundingClientRect();
@@ -530,10 +538,8 @@ METRIC_JS = """
     } else {
       continue;
     }
-    const key = elLabel(el) + '|' + reason + '|' + contentW + 'x' + boxW;
-    if (seen.has(key)) continue;
-    seen.add(key);
     clipped.push({
+      _el: el,
       el: elLabel(el),
       reason,
       content: contentW,
@@ -550,7 +556,9 @@ METRIC_JS = """
     smallTapSample: smallTap.slice(0, 25),
     smallFontFields: smallFont,
     clippedCount: clipped.length,
-    clipped: clipped.slice(0, 15),
+    clipped: clipped.slice(0, 15).map(({ el, reason, content, box }) => ({
+      el, reason, content, box,
+    })),
   };
 }
 """

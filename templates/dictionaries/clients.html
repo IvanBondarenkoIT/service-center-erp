@@ -9,15 +9,16 @@
   <div class="search-field">
     <label for="client-search">{{ t('orders.search') }}</label>
     <div class="search-input">
-      <span class="material-symbols-outlined">search</span>
-      <input id="client-search" name="q" value="{{ q }}" placeholder="{{ t('dict.phone') }} / {{ t('dict.name') }}" />
+      {% from "partials/icon.html" import icon %}
+      {{ icon('search') }}
+      <input id="client-search" type="search" name="q" enterkeyhint="search" value="{{ q }}" placeholder="{{ t('dict.phone') }} / {{ t('dict.name') }}" />
     </div>
   </div>
   <button class="btn btn-secondary" type="submit">{{ t('dict.search') }}</button>
 </form>
 <form method="post" action="/dict/clients" class="card grid-3">
-  <div><label>{{ t('dict.phone') }}</label><input name="phone" required class="input-mono" /></div>
-  <div><label>{{ t('dict.name') }}</label><input name="name" /></div>
+  <div><label>{{ t('dict.phone') }}</label><input name="phone" required class="input-mono" / type="text"></div>
+  <div><label>{{ t('dict.name') }}</label><input name="name" / type="text"></div>
   <div class="align-end"><button class="btn" type="submit">{{ t('dict.add') }}</button></div>
 </form>
 <div class="order-list">
@@ -30,8 +31,8 @@
       <span class="order-sn">{{ c.phone }}</span>
     </summary>
     <form method="post" action="/dict/clients/{{ c.id }}/edit" class="grid-3 field-gap">
-      <div><label>{{ t('dict.phone') }}</label><input name="phone" required class="input-mono" value="{{ c.phone }}" /></div>
-      <div><label>{{ t('dict.name') }}</label><input name="name" value="{{ c.name }}" /></div>
+      <div><label>{{ t('dict.phone') }}</label><input name="phone" required class="input-mono" value="{{ c.phone }}" / type="text"></div>
+      <div><label>{{ t('dict.name') }}</label><input name="name" value="{{ c.name }}" / type="text"></div>
       <div class="align-end"><button class="btn btn-secondary" type="submit">{{ t('orders.save') }}</button></div>
     </form>
     <form method="post" action="/dict/clients/{{ c.id }}/delete" class="field-gap" onsubmit="return confirm('{{ t('admin.delete_confirm') }}')">
