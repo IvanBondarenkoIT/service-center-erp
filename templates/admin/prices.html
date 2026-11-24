@@ -10,7 +10,7 @@
   <h2>{{ t('line_type.diagnostic') }}</h2>
   <div>
     <label>{{ t('orders.amount') }}, {{ t('orders.currency') }}</label>
-    <input type="number" step="0.01" name="amount" class="input-mono input-amount" required value="{{ '%.2f'|format(diagnostic_price) }}" />
+    <input type="number" step="0.01" name="amount" class="input-mono input-amount" required value="{{ '%.2f'|format(diagnostic_price) }}" inputmode="decimal" />
   </div>
   <p class="muted">{{ t('admin.diagnostic_hint') }}</p>
   <button class="btn btn-secondary" type="submit">{{ t('orders.save') }}</button>
@@ -19,9 +19,9 @@
 <form method="post" action="/admin/prices/promos" class="card stack">
   <h2>{{ t('admin.promo_new') }}</h2>
   <div class="grid-3">
-    <div><label>{{ t('dict.name') }}</label><input name="name" required /></div>
-    <div><label>{{ t('orders.client_pay') }}</label><input type="number" step="0.01" name="client_amount" class="input-mono" value="0" /></div>
-    <div><label>{{ t('orders.val_amount') }}</label><input type="number" step="0.01" name="val_amount" class="input-mono" value="0" /></div>
+    <div><label>{{ t('dict.name') }}</label><input name="name" required / type="text"></div>
+    <div><label>{{ t('orders.client_pay') }}</label><input type="number" step="0.01" name="client_amount" class="input-mono" value="0" inputmode="decimal" /></div>
+    <div><label>{{ t('orders.val_amount') }}</label><input type="number" step="0.01" name="val_amount" class="input-mono" value="0" inputmode="decimal" /></div>
   </div>
   <label class="check-row">
     <input type="checkbox" name="is_active" value="1" checked />
@@ -41,9 +41,9 @@
     </summary>
     <form method="post" action="/admin/prices/promos/{{ p.id }}" class="stack field-gap">
       <div class="grid-3">
-        <div><label>{{ t('dict.name') }}</label><input name="name" required value="{{ p.name }}" /></div>
-        <div><label>{{ t('orders.client_pay') }}</label><input type="number" step="0.01" name="client_amount" class="input-mono" value="{{ '%.2f'|format(p.client_amount) }}" /></div>
-        <div><label>{{ t('orders.val_amount') }}</label><input type="number" step="0.01" name="val_amount" class="input-mono" value="{{ '%.2f'|format(p.val_amount) }}" /></div>
+        <div><label>{{ t('dict.name') }}</label><input name="name" required value="{{ p.name }}" / type="text"></div>
+        <div><label>{{ t('orders.client_pay') }}</label><input type="number" step="0.01" name="client_amount" class="input-mono" value="{{ '%.2f'|format(p.client_amount) }}" inputmode="decimal" /></div>
+        <div><label>{{ t('orders.val_amount') }}</label><input type="number" step="0.01" name="val_amount" class="input-mono" value="{{ '%.2f'|format(p.val_amount) }}" inputmode="decimal" /></div>
       </div>
       <label class="check-row">
         <input type="checkbox" name="is_active" value="1" {% if p.is_active %}checked{% endif %} />

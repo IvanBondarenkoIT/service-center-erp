@@ -34,7 +34,7 @@
 
 {% if erp_client %}
 <div class="history-item erp-purchases">
-  <span class="material-symbols-outlined" aria-hidden="true">shopping_bag</span>
+  {% from "partials/icon.html" import icon %}{{ icon('shopping_bag') }}
   {% if erp_client.purchase_count %}
   <span>
     {{ t('intake.erp_purchases') }}: {{ erp_client.purchase_count }}

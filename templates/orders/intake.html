@@ -15,7 +15,7 @@
     <h2>{{ t('orders.client') }}</h2>
     <div>
       <label for="new_client_phone">{{ t('orders.phone') }} *</label>
-      <input id="new_client_phone" name="new_client_phone" type="tel" class="input-mono" required
+      <input id="new_client_phone" name="new_client_phone" type="tel" class="input-mono" autocomplete="tel" required
         placeholder="555-12-34-56"
         value="{{ phone }}"
         hx-get="/orders/partials/history-by-client"
@@ -38,7 +38,7 @@
     <h2>{{ t('orders.machine') }}</h2>
     <div>
       <label for="new_machine_serial">{{ t('orders.serial') }}</label>
-      <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono"
+      <input id="new_machine_serial" name="new_machine_serial" type="text" class="input-mono" autocapitalize="characters" autocorrect="off" spellcheck="false"
         placeholder="SN"
         value="{{ serial }}"
         hx-get="/orders/partials/history"
@@ -50,7 +50,7 @@
         <label class="btn btn-secondary scan-camera-btn" id="scan-camera-btn">
           <input id="scan-file-input" class="scan-file-input" type="file"
             accept="image/*" capture="environment" />
-          <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
+          {% from "partials/icon.html" import icon %}{{ icon('photo_camera') }}
           {{ t('intake.scan') }}
         </label>
       </div>
@@ -84,6 +84,6 @@
 
 <div id="scan-file-fallback" hidden></div>
 
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="/static/vendor/html5-qrcode/html5-qrcode.min.js?v={{ asset_v }}"></script>
 <script src="/static/intake-scan.js?v={{ asset_v }}"></script>
 {% endblock %}

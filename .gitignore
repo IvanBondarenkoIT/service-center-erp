@@ -10,3 +10,4 @@ scerp_local.db
 *.db
 data/input/*.xlsx
 *_analysis.txt
+artifacts/

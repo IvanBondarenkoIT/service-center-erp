@@ -9,7 +9,7 @@
 {% if error %}<p class="error">{{ t(error) }}</p>{% endif %}
 
 <form method="post" action="/admin/users/{{ target.id }}" class="card stack">
-  <div><label>{{ t('dict.name') }}</label><input name="full_name" value="{{ target.full_name }}" /></div>
+  <div><label>{{ t('dict.name') }}</label><input name="full_name" value="{{ target.full_name }}" / type="text"></div>
   <div class="grid-2">
     <div>
       <label>{{ t('admin.role') }}</label>

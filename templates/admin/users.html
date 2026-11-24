@@ -10,8 +10,8 @@
 <form method="post" action="/admin/users" class="card stack">
   <h2>{{ t('admin.user_new') }}</h2>
   <div class="grid-3">
-    <div><label>{{ t('admin.login') }}</label><input name="login" required autocomplete="off" /></div>
-    <div><label>{{ t('dict.name') }}</label><input name="full_name" /></div>
+    <div><label>{{ t('admin.login') }}</label><input name="login" required autocomplete="off" / type="text"></div>
+    <div><label>{{ t('dict.name') }}</label><input name="full_name" / type="text"></div>
     <div><label>{{ t('admin.password') }}</label><input name="password" type="password" required minlength="6" autocomplete="new-password" /></div>
   </div>
   <div class="grid-2">

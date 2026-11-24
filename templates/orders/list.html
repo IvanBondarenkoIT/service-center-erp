@@ -10,15 +10,16 @@
   <div class="search-field">
     <label for="search">{{ t('orders.search') }}</label>
     <div class="search-input">
-      <span class="material-symbols-outlined">search</span>
-      <input id="search" type="text" name="q" value="{{ q }}" placeholder="{{ t('orders.search_placeholder') }}" />
+      {% from "partials/icon.html" import icon %}
+      {{ icon('search') }}
+      <input id="search" type="search" name="q" enterkeyhint="search" value="{{ q }}" placeholder="{{ t('orders.search_placeholder') }}" />
     </div>
   </div>
   <input type="hidden" name="status" value="{{ status }}" />
   <button class="btn btn-secondary" type="submit">{{ t('orders.search') }}</button>
 </form>
 
-<div class="chip-row filter-chips">
+<div class="chip-row filter-chips hscroll">
   {% for s in statuses %}
   <a class="chip {% if status == s.value %}active{% endif %}"
      href="/?status={{ s.value }}{% if q %}&amp;q={{ q|urlencode }}{% endif %}">{{ t('status.' + s.value) }}</a>
@@ -46,7 +47,7 @@
       <span class="order-paid">{{ t('orders.paid_at') }} {{ o.paid_at|business_day }}</span>
       {% endif %}
       {% if o.list_pay_methods %}
-      <div class="chip-row order-pay-chips">
+      <div class="chip-row order-pay-chips hscroll">
         {% for m in o.list_pay_methods %}
         <span class="chip pay-chip pay-chip-{{ m.value }}">{{ t('payment_type.' + m.value) }}</span>
         {% endfor %}

@@ -167,6 +167,13 @@ alembic/       # миграции
 | Promocode Checker | 8020 |
 | Firebird proxy | 8010 |
 
+## UI-скриншоты
+
+Для mobile-first этапов: `pip install -r requirements-dev.txt` и `playwright install chromium`, затем
+`python scripts/ui_snapshots.py --name baseline` (отдельная SQLite во временной папке, не трогает `.env`).
+Сравнение прогонов: `python scripts/ui_snapshots.py --name stage1 --compare baseline` →
+`artifacts/ui/stage1/compare.html`. Артефакты в `artifacts/` (в git не коммитятся).
+
 ## Troubleshooting: вижу чужой UI (Promocode Checker и т.п.)
 
 Сервер может отвечать правильно, а браузер показывать старое PWA с **service worker**, зарегистрированным на том же origin (хост + порт).
