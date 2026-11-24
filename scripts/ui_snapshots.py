@@ -290,7 +290,8 @@ def _seed_demo(base: str, db_path: Path) -> dict[str, Any]:
         ("warranty_eur", "5.00"),
     ]
     ids["multi"] = save(multi)
-    ids["in_progress_open"] = ids["in_progress_SN-UI-001"]
+    # Stage 4 needs the multi-line order as the primary "in progress" screenshot.
+    ids["in_progress_open"] = ids["multi"]
 
     # Blank SN (parts-only)
     ids["blank_sn"] = save(
@@ -452,11 +453,32 @@ METRIC_JS = """
     document.documentElement.scrollWidth,
     document.body ? document.body.scrollWidth : 0
   );
+
+  function isVisible(el) {
+    if (!el || el.getClientRects().length === 0) return false;
+    let node = el;
+    while (node && node.nodeType === 1) {
+      const st = getComputedStyle(node);
+      if (st.display === 'none' || st.visibility === 'hidden') return false;
+      node = node.parentElement;
+    }
+    return true;
+  }
+
+  function elLabel(el) {
+    const tag = el.tagName.toLowerCase();
+    const cls = (el.className && typeof el.className === 'string')
+      ? '.' + el.className.trim().split(/\\s+/).slice(0, 2).join('.')
+      : '';
+    return tag + cls;
+  }
+
   const interactive = Array.from(document.querySelectorAll(
     'a, button, input, select, textarea, label:has(input[type=checkbox]), label:has(input[type=radio])'
   ));
   const smallTap = [];
   for (const el of interactive) {
+    if (!isVisible(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) continue;
     if (r.height > 0 && r.height < 44) {
@@ -469,12 +491,56 @@ METRIC_JS = """
       });
     }
   }
+
   const fields = Array.from(document.querySelectorAll('input, select, textarea'));
   let smallFont = 0;
   for (const el of fields) {
+    if (el.type === 'hidden') continue;
+    if (!isVisible(el)) continue;
     const fs = parseFloat(getComputedStyle(el).fontSize || '0');
     if (fs > 0 && fs < 16) smallFont += 1;
   }
+
+  const clipped = [];
+  const seen = new Set();
+  const all = Array.from(document.querySelectorAll('body *'));
+  for (const el of all) {
+    if (!isVisible(el)) continue;
+    const st = getComputedStyle(el);
+    const ox = st.overflowX;
+    const r = el.getBoundingClientRect();
+    let reason = '';
+    let contentW = 0;
+    let boxW = 0;
+    if (
+      (ox === 'hidden' || ox === 'clip' || ox === 'auto' || ox === 'scroll')
+      && el.scrollWidth > el.clientWidth + 1
+    ) {
+      reason = 'overflow-x:' + ox;
+      contentW = el.scrollWidth;
+      boxW = el.clientWidth;
+    } else if (
+      st.position !== 'fixed'
+      && r.width > 0
+      && r.right > layoutWidth + 1
+    ) {
+      reason = 'past-viewport';
+      contentW = Math.round(r.right);
+      boxW = layoutWidth;
+    } else {
+      continue;
+    }
+    const key = elLabel(el) + '|' + reason + '|' + contentW + 'x' + boxW;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    clipped.push({
+      el: elLabel(el),
+      reason,
+      content: contentW,
+      box: boxW,
+    });
+  }
+
   return {
     viewportWidth: layoutWidth,
     innerWidth: window.innerWidth,
@@ -483,6 +549,8 @@ METRIC_JS = """
     smallTapCount: smallTap.length,
     smallTapSample: smallTap.slice(0, 25),
     smallFontFields: smallFont,
+    clippedCount: clipped.length,
+    clipped: clipped.slice(0, 15),
   };
 }
 """
@@ -532,26 +600,34 @@ def _capture(
                     lambda req: failed_requests.append(f"{req.method} {req.url} {req.failure}"),
                 )
 
+                def snap(label: str, path: str) -> None:
+                    console_errors.clear()
+                    failed_requests.clear()
+                    shot_name = _slug(label, role, size_name)
+                    page.screenshot(path=str(shots / f"{shot_name}.png"), full_page=True)
+                    page.screenshot(
+                        path=str(shots / f"{shot_name}__viewport.png"),
+                        full_page=False,
+                    )
+                    metrics = page.evaluate(METRIC_JS, vp["width"])
+                    report["pages"].append(
+                        {
+                            "role": role,
+                            "size": size_name,
+                            "label": label,
+                            "path": path,
+                            "final_url": page.url,
+                            "shot": f"shots/{shot_name}.png",
+                            "shot_viewport": f"shots/{shot_name}__viewport.png",
+                            "console_errors": list(console_errors),
+                            "failed_requests": list(failed_requests),
+                            **metrics,
+                        }
+                    )
+
                 # login page (logged out)
                 page.goto(f"{base}/login", wait_until="networkidle")
-                login_shot = _slug("login", role, size_name)
-                page.screenshot(path=str(shots / f"{login_shot}.png"), full_page=True)
-                metrics = page.evaluate(METRIC_JS, vp["width"])
-                report["pages"].append(
-                    {
-                        "role": role,
-                        "size": size_name,
-                        "label": "login",
-                        "path": "/login",
-                        "final_url": page.url,
-                        "shot": f"shots/{login_shot}.png",
-                        "console_errors": list(console_errors),
-                        "failed_requests": list(failed_requests),
-                        **metrics,
-                    }
-                )
-                console_errors.clear()
-                failed_requests.clear()
+                snap("login", "/login")
 
                 # Cookie jar via APIRequestContext (form submit alone was flaky under headless).
                 login_resp = context.request.post(
@@ -574,30 +650,13 @@ def _capture(
                         raise RuntimeError(f"locale switch failed: HTTP {loc_resp.status}")
 
                 for label, path in _pages_for(role, ids):
-                    console_errors.clear()
-                    failed_requests.clear()
                     page.goto(f"{base}{path}", wait_until="networkidle")
                     page.wait_for_timeout(200)
                     if "/login" in page.url and path != "/login":
                         raise RuntimeError(
                             f"Still on login after auth as {role} for {path} → {page.url}"
                         )
-                    shot_name = _slug(label, role, size_name)
-                    page.screenshot(path=str(shots / f"{shot_name}.png"), full_page=True)
-                    metrics = page.evaluate(METRIC_JS, vp["width"])
-                    report["pages"].append(
-                        {
-                            "role": role,
-                            "size": size_name,
-                            "label": label,
-                            "path": path,
-                            "final_url": page.url,
-                            "shot": f"shots/{shot_name}.png",
-                            "console_errors": list(console_errors),
-                            "failed_requests": list(failed_requests),
-                            **metrics,
-                        }
-                    )
+                    snap(label, path)
                 context.close()
         browser.close()
 
@@ -626,30 +685,44 @@ def _compare(before_dir: Path, after_dir: Path, out_path: Path) -> None:
         if not b or not a:
             rows.append(
                 f"<tr><td>{escape(role)}</td><td>{escape(size)}</td><td>{escape(label)}</td>"
-                f"<td colspan='3'>missing in {'before' if not b else 'after'}</td></tr>"
+                f"<td colspan='4'>missing in {'before' if not b else 'after'}</td></tr>"
             )
             continue
         worse_scroll = a["scrollWidth"] > b["scrollWidth"] and a.get("horizontalOverflow")
         worse_tap = a["smallTapCount"] > b["smallTapCount"]
         worse_font = a["smallFontFields"] > b["smallFontFields"]
-        cls = "worse" if (worse_scroll or worse_tap or worse_font) else ""
+        worse_clip = a.get("clippedCount", 0) > b.get("clippedCount", 0)
+        cls = "worse" if (worse_scroll or worse_tap or worse_font or worse_clip) else ""
         rows.append(
             f"<tr class='{cls}'><td>{escape(role)}</td><td>{escape(size)}</td><td>{escape(label)}</td>"
             f"<td>{b['scrollWidth']} → {a['scrollWidth']}</td>"
             f"<td>{b['smallFontFields']} → {a['smallFontFields']}</td>"
-            f"<td>{b['smallTapCount']} → {a['smallTapCount']}</td></tr>"
+            f"<td>{b['smallTapCount']} → {a['smallTapCount']}</td>"
+            f"<td>{b.get('clippedCount', 0)} → {a.get('clippedCount', 0)}</td></tr>"
         )
         if size == "mobile":
-            b_img = before_dir / b["shot"]
-            a_img = after_dir / a["shot"]
+            b_full = before_dir / b["shot"]
+            a_full = after_dir / a["shot"]
+            b_vp = before_dir / b.get("shot_viewport", "")
+            a_vp = after_dir / a.get("shot_viewport", "")
+            vp_pair = ""
+            if b.get("shot_viewport") and a.get("shot_viewport") and b_vp.exists() and a_vp.exists():
+                vp_pair = (
+                    f"<div class='pair'>"
+                    f"<figure><figcaption>before viewport</figcaption>"
+                    f"<img src='{escape(b_vp.as_uri())}' /></figure>"
+                    f"<figure><figcaption>after viewport</figcaption>"
+                    f"<img src='{escape(a_vp.as_uri())}' /></figure>"
+                    f"</div>"
+                )
             blocks.append(
                 f"<section><h3>{escape(role)} / {escape(label)}</h3>"
                 f"<div class='pair'>"
-                f"<figure><figcaption>before</figcaption>"
-                f"<img src='{escape(b_img.as_uri())}' /></figure>"
-                f"<figure><figcaption>after</figcaption>"
-                f"<img src='{escape(a_img.as_uri())}' /></figure>"
-                f"</div></section>"
+                f"<figure><figcaption>before full</figcaption>"
+                f"<img src='{escape(b_full.as_uri())}' /></figure>"
+                f"<figure><figcaption>after full</figcaption>"
+                f"<img src='{escape(a_full.as_uri())}' /></figure>"
+                f"</div>{vp_pair}</section>"
             )
 
     html = f"""<!DOCTYPE html>
@@ -660,13 +733,13 @@ body {{ font-family: system-ui, sans-serif; margin: 1rem; }}
 table {{ border-collapse: collapse; width: 100%; font-size: 14px; }}
 th, td {{ border: 1px solid #ccc; padding: 4px 8px; text-align: left; }}
 tr.worse {{ background: #ffe8e8; }}
-.pair {{ display: flex; gap: 12px; flex-wrap: wrap; }}
+.pair {{ display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }}
 .pair img {{ max-width: 390px; border: 1px solid #ddd; }}
 </style></head><body>
 <h1>Compare: {escape(before_dir.name)} → {escape(after_dir.name)}</h1>
 <table>
 <thead><tr><th>role</th><th>size</th><th>page</th>
-<th>scrollWidth</th><th>fields &lt;16px</th><th>tap &lt;44px</th></tr></thead>
+<th>scrollWidth</th><th>fields &lt;16px</th><th>tap &lt;44px</th><th>clipped</th></tr></thead>
 <tbody>
 {''.join(rows)}
 </tbody></table>
@@ -677,7 +750,9 @@ tr.worse {{ background: #ffe8e8; }}
     out_path.write_text(html, encoding="utf-8")
 
 
-def _start_server(db_path: Path, port: int) -> subprocess.Popen[str]:
+def _start_server(
+    db_path: Path, port: int, log_path: Path
+) -> tuple[subprocess.Popen[bytes], Any]:
     env = os.environ.copy()
     # Do not inherit a production DATABASE_URL / secrets from the shell/.env for this child:
     # pydantic-settings still reads .env, but process env overrides file values.
@@ -703,14 +778,16 @@ def _start_server(db_path: Path, port: int) -> subprocess.Popen[str]:
         "--log-level",
         "warning",
     ]
-    return subprocess.Popen(
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_fh = open(log_path, "wb")  # noqa: SIM115 — closed in main() after process exits
+    proc = subprocess.Popen(
         cmd,
         cwd=str(ROOT),
         env=env,
-        stdout=subprocess.PIPE,
+        stdout=log_fh,
         stderr=subprocess.STDOUT,
-        text=True,
     )
+    return proc, log_fh
 
 
 def main() -> int:
@@ -733,7 +810,8 @@ def main() -> int:
 
     port = _free_port()
     base = f"http://127.0.0.1:{port}"
-    proc = _start_server(db_path, port)
+    log_path = out_dir / "server.log"
+    proc, log_fh = _start_server(db_path, port, log_path)
     try:
         _wait_http(f"{base}/login")
         # Give seed a moment after first request/startup
@@ -756,9 +834,11 @@ def main() -> int:
         )
         mobile = [p for p in report["pages"] if p["size"] == "mobile"]
         overflow = sum(1 for p in mobile if p.get("horizontalOverflow"))
+        clipped = sum(1 for p in mobile if p.get("clippedCount", 0) > 0)
         print(
             f"Wrote {out_dir / 'report.json'} — "
-            f"{len(report['pages'])} pages, mobile overflow pages: {overflow}"
+            f"{len(report['pages'])} pages, mobile overflow: {overflow}, "
+            f"with clipped: {clipped}"
         )
         if args.compare:
             before = ARTIFACTS / args.compare
@@ -774,6 +854,10 @@ def main() -> int:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+        try:
+            log_fh.close()
+        except Exception:  # noqa: BLE001
+            pass
     return 0
 
 
