@@ -5,7 +5,7 @@
 | # | Этап | Промпт | Ветка | Статус | Обновлено | Последний коммит | Отчёт | Ревью |
 |---|------|--------|-------|--------|-----------|------------------|-------|-------|
 | 0 | Скрипт скриншотов, сверка контракта | [stage-0](prompts/stage-0-baseline.md) | feature/mobile-0-baseline | review | 2026-11-24 | 639c7d9 | [stage-0.md](reports/stage-0.md) | [stage-0.md](reviews/stage-0.md) |
-| 1 | Фундамент: шрифты/иконки локально, поля 16px, тап-зоны, safe-area | [stage-1](prompts/stage-1-foundation.md) | feature/mobile-1-foundation | review | 2026-11-24 | _(tip)_ | [stage-1.md](reports/stage-1.md) | |
+| 1 | Фундамент: шрифты/иконки локально, поля 16px, тап-зоны, safe-area | [stage-1](prompts/stage-1-foundation.md) | feature/mobile-1-foundation | review | 2026-11-24 | 13cab62 | [stage-1.md](reports/stage-1.md) | |
 | 2 | Каркас: плашка, нижнее меню по ролям, «Ещё» | [stage-2](prompts/stage-2-shell.md) | feature/mobile-2-shell | todo | | | | |
 | 3 | Приёмка | [stage-3](prompts/stage-3-intake.md) | feature/mobile-3-intake | todo | | | | |
 | 4 | Форма заказа | [stage-4](prompts/stage-4-order-form.md) | feature/mobile-4-order-form | todo | | | | |
