@@ -21,7 +21,8 @@
 
 **id:** `lines-body`, `new_machine_serial`, `new_machine_model`, `new_client_phone`, `new_client_name`, `no_machine`,
 `erp_goods_id`, `erp-model-suggest`, `collection-subtype`, `scan-camera-btn`, `scan-file-input`, `scan-status`,
-`scan-hint`, `scan-failed`, а также цели HTMX `history-box`, `client-history-box`.
+`scan-hint`, `scan-failed`, `scan-file-fallback` (контейнер Html5Qrcode), а также цели HTMX `history-box`,
+`client-history-box`.
 
 **Классы:** `.chip-row`, `.chip-row[data-toggle]`, `button.chip`, `.chip-line-warranty`, `.line-pay-row`,
 `.line-amount-wrap`, `.line-val-wrap`, `.line-part-suggest`, `.is-locked`.
@@ -34,10 +35,14 @@ JS сам переключает классы `active`, `is-busy`, `is-warranty`
 **Поля по name внутри карточки строки:** `line_type`, `description`, `part_code`, `payment_type`, `is_warranty`,
 `amount`, `warranty_eur`, `promo_id`.
 
+**Поля/чипы вне строки заказа (кассa):** `name="kind"` (расход/инкасация) управляет видимостью `#collection-subtype`;
+`name="subtype"` — подтип инкасации через те же `.chip-row` / `data-value`.
+
 **HTMX:** эндпоинты `/dict/erp-suggest`, `/dict/part-suggest`, `/orders/partials/history`,
 `/orders/partials/history-by-client`, `/orders/partials/line-row`; `hx-include="closest [data-line-card]"`,
 `hx-target="next .line-part-suggest"` — значит, `.line-part-suggest` должен оставаться **следующим соседом**
-поля, на котором висит этот `hx-target`.
+поля, на котором висит этот `hx-target`. На форме заказа также: `hx-target="#history-box"`,
+`#client-history-box`, `#erp-model-suggest`, `#lines-body` (добавление строки, `hx-swap="beforeend"`).
 
 ## 3. CSS
 
