@@ -1,0 +1,14 @@
+---
+description: Mobile-first переработка UI Service Center ERP — порядок работы по этапам, правила, отчёты
+globs: templates/**, static/**, docs/mobile-first/**
+alwaysApply: false
+---
+
+Работа над интерфейсом идёт по этапам из папки `docs/mobile-first/`.
+
+- Когда просят «выполни следующий этап из docs/mobile-first», «этап N» или «исправь замечания из reviews/stage-N.md» —
+  сначала прочитай `docs/mobile-first/README.md` и действуй строго по разделу «Порядок работы (для Cursor)».
+- При любой правке `templates/` или `static/` соблюдай `docs/mobile-first/RULES.md`: не меняй name/id/data-*/hx-*,
+  селекторы из контракта с JS, URL форм и бэкенд; CSS mobile-first только через min-width 600/900/1200.
+- Отчёт по этапу — в `docs/mobile-first/reports/stage-N.md` по шаблону `reports/_TEMPLATE.md`, статус — в `STATUS.md`.
+- Не мержи в `main` и не пушь `main`: мерж в main сразу выкатывается на прод.
